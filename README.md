@@ -13,6 +13,27 @@ Stages are ordered by dependency, not difficulty — Stage 6 assumes Stage 3 and
 
 Treat official docs as ground truth and everything else (courses, blog tutorials) as commentary on it — frameworks like LangGraph ship breaking changes often enough that an older tutorial can mislead you on current APIs.
 
+## AI Agent vs. Agentic AI — the distinction that matters
+
+These terms get used interchangeably, but they describe different points on a spectrum of autonomy. Knowing which one you're building changes your architecture, your error-handling budget, and how much you can trust the system unattended.
+
+| | **AI Agent** | **Agentic AI** |
+|---|---|---|
+| **Scope** | One model, one task, a bounded set of tools | Multiple agents/roles, coordinated toward a broader goal |
+| **Loop** | Perceive → decide → act, usually a single pass or a short bounded loop | Continuous plan → act → reflect → replan, often spanning many sub-tasks |
+| **Autonomy** | Executes a defined task; a human or a fixed pipeline decides what task to run next | Decomposes the *goal itself* — decides what tasks need to exist |
+| **State** | Mostly stateless per call, maybe a short conversation buffer | Persistent memory, shared state across agents and sessions |
+| **Example** | A support bot that looks up an order and answers one question | A system that plans a trip, books flights, adjusts for a cancellation, and re-plans the itinerary without being told each step |
+| **Where it lives in this roadmap** | Stages 1–4 build the parts; **Stage 5** is where a single agent becomes real | **Stage 6** is where agentic AI starts — orchestration, handoffs, and shared goals across agents |
+
+The short version: **an AI agent is a component; agentic AI is a system of components pursuing a goal with minimal supervision.** A single ReAct loop that calls a weather API is an agent. A crew of agents that researches a market, drafts a strategy, and revises it based on a critic agent's feedback is agentic AI. Stage 5 in this roadmap teaches you to build the former well; Stage 6 teaches you to compose several of them into the latter.
+
+## Start here: a basic AI agent
+
+Before touching a framework, build one agent from raw API calls so the ReAct loop isn't a mystery a library is hiding from you. [`examples/01-basic-agent/`](examples/01-basic-agent/) is a ~120-line Python script: one tool (calculator), one loop, no framework. Run it, then read Stage 5 and Stage 6 knowing exactly what "framework magic" is standing in for.
+
+Once that's comfortable, the natural next step toward *agentic* AI is a two-agent handoff — see the note at the bottom of the example's README for where that lives once you build it.
+
 ## Stages
 
 | # | Stage | Core topics |
