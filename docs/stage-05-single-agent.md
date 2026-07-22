@@ -38,5 +38,43 @@ return degrade_gracefully(state)  # partial answer, not a crash
 
 Your agent never runs forever, never crashes on a bad tool result, and returns something useful even when it can't fully solve the task.
 
+## Long-running agents
+
+A `for step in range(MAX_ITERS)` loop is fine for a task that finishes in seconds. It's not enough once a task genuinely takes minutes to hours — a large refactor, a multi-source research task, an overnight batch job. Three problems show up that a bounded loop doesn't have to deal with:
+
+1. **The process can die mid-task.** A deploy, an OOM kill, a laptop closing — none of that should mean starting over from step 1.
+2. **Cost and context drift as the task grows.** A loop that's been running for 200 steps has a very different token profile than step 5; unbounded context growth eventually blows the window or the budget (this is exactly what Stage 4's short-term/long-term split exists to manage).
+3. **"Still working" and "stuck" look identical from outside.** A long-running agent needs to report progress somewhere a human (or a monitor) can check, not just run silently until it returns or times out.
+
+The fix is to make the loop **resumable**, not just boundable: persist enough state after each step that the agent can restart from where it left off instead of from scratch. This is the `PersistentState` piece from [Stage 4](stage-04-memory-state.md) put to use.
+
+```python
+def run_long_task(task_id: str, checkpoint_store):
+    state = PersistentState(task_id, checkpoint_store)
+    saved = state.resume()
+    step, history = (saved["step"], saved["history"]) if saved else (0, [])
+
+    while step < MAX_ITERS:
+        thought, action = agent.think(history)
+        result = execute(action)
+        history.append((thought, action, result))
+        step += 1
+
+        # Checkpoint every step, not just at the end — this is what makes
+        # a kill-and-restart resumable instead of a silent full re-run.
+        state.checkpoint({"step": step, "history": history})
+
+        if action.is_final:
+            return result
+
+    return degrade_gracefully(history)
+```
+
+The difference from the bounded-loop brief above: a crash at step 150 resumes at step 150, not step 0. For anything running unattended past a few minutes, checkpoint on every step, not on a timer — a crash between timer ticks loses everything since the last save.
+
+## Done when — long-running
+
+Killing the process mid-run (`kill -9`) and restarting it resumes from the last checkpoint instead of repeating already-finished work, and you have some way — logs, a status file, a dashboard — to tell "still working" apart from "stuck" without staring at raw output.
+
 ---
 [← Stage 04 — Memory + State Management](stage-04-memory-state.md) · [Back to roadmap](../README.md) · **Next:** [Stage 06 — Multi-Agent Orchestration →](stage-06-multi-agent.md)
