@@ -1,6 +1,6 @@
-[← Stage 11](stage-11-deployment.md) · Stage 12 of 12
+[← Stage 12](stage-12-deployment.md) · Stage 13 of 13
 
-# Stage 12 — Open Source + Portfolio
+# Stage 13 — Open Source + Portfolio
 
 Ship autonomous agents publicly · write architecture docs · record demos · contribute to libs
 
@@ -26,4 +26,4 @@ Take the agent built across Stages 5–11 and ship it: public repo, a README wit
 A stranger can read your README, understand what the agent does and why it's built that way, and run it themselves.
 
 ---
-[← Stage 11 — Production Deployment](stage-11-deployment.md) · [Back to roadmap](../README.md)
+[← Stage 12 — Production Deployment](stage-12-deployment.md) · [Back to roadmap](../README.md)

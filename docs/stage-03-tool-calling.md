@@ -1,4 +1,4 @@
-[← Stage 02](stage-02-llm-fundamentals.md) · Stage 03 of 12 · **Next:** [Stage 04 →](stage-04-memory-state.md)
+[← Stage 02](stage-02-llm-fundamentals.md) · Stage 03 of 13 · **Next:** [Stage 04 →](stage-04-memory-state.md)
 
 # Stage 03 — Tool Calling + Structured Outputs
 

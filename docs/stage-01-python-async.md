@@ -1,4 +1,4 @@
-[← Back to roadmap](../README.md) · Stage 01 of 12 · **Next:** [Stage 02 →](stage-02-llm-fundamentals.md)
+[← Back to roadmap](../README.md) · Stage 01 of 13 · **Next:** [Stage 02 →](stage-02-llm-fundamentals.md)
 
 # Stage 01 — Python + Async Foundations
 

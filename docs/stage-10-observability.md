@@ -1,6 +1,6 @@
-[← Stage 08](stage-08-evaluation-qa.md) · Stage 09 of 12 · **Next:** [Stage 10 →](stage-10-security-guardrails.md)
+[← Stage 09](stage-09-evaluation-qa.md) · Stage 10 of 13 · **Next:** [Stage 11 →](stage-11-security-guardrails.md)
 
-# Stage 09 — Observability + Tracing
+# Stage 10 — Observability + Tracing
 
 Distributed tracing (LangSmith/Arize) · cost dashboards · latency monitoring · alerting
 
@@ -33,4 +33,4 @@ os.environ["LANGCHAIN_PROJECT"] = "agent-stage9"
 Given a bad output, you can find the exact span (prompt, tool call, or handoff) that caused it in under two minutes.
 
 ---
-[← Stage 08 — Evaluation + Quality Assurance](stage-08-evaluation-qa.md) · [Back to roadmap](../README.md) · **Next:** [Stage 10 — Security + Guardrails →](stage-10-security-guardrails.md)
+[← Stage 09 — Evaluation + Quality Assurance](stage-09-evaluation-qa.md) · [Back to roadmap](../README.md) · **Next:** [Stage 11 — Security + Guardrails →](stage-11-security-guardrails.md)

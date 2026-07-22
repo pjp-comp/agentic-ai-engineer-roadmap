@@ -36,7 +36,7 @@ Try it without a math question too (`python agent.py "What's the capital of Fran
 
 - **`messages.append({"role": "assistant", "content": response.content})`** — the full content list is appended, not just the text. Drop the `tool_use` blocks here and the next request breaks, because a `tool_result` with no matching `tool_use_id` in history is invalid.
 - **`tool_results` collected before appending** — if a turn requests multiple tools, all their results go back in a *single* user message. Splitting them across messages silently trains the model to stop batching tool calls.
-- **`MAX_ITERATIONS`** — this is the "graceful degradation" concept from [Stage 5](../../docs/stage-05-single-agent.md): an agent that can loop forever on a flaky tool is a liability, not a feature.
+- **`MAX_ITERATIONS`** — this is the "graceful degradation" concept from [Stage 6](../../docs/stage-06-single-agent.md): an agent that can loop forever on a flaky tool is a liability, not a feature.
 - **AST whitelist, not `eval()`** — the model's tool input is untrusted text. `calculate()` only ever evaluates arithmetic node types; anything else raises before it's touched.
 
 ## Extend it (optional exercises)
@@ -47,4 +47,4 @@ Try it without a math question too (`python agent.py "What's the capital of Fran
 
 ## Where this goes next
 
-This single agent is the building block for **agentic AI** (Stage 6): once you have one agent that reliably loops, the next step is wiring two of them together — e.g. a "planner" agent that breaks a task into sub-tasks and a "worker" agent (this same loop) that executes each one, coordinated by a supervisor. That two-agent handoff is a natural `examples/02-two-agent-handoff/` to build once Stage 5 and Stage 6 in the main roadmap feel solid — not included yet, since it's meant to be *your* next exercise, not another script to read.
+This single agent is the building block for **agentic AI** (Stage 7): once you have one agent that reliably loops, the next step is wiring two of them together — e.g. a "planner" agent that breaks a task into sub-tasks and a "worker" agent (this same loop) that executes each one, coordinated by a supervisor. Stage 5's shared-session pattern is how they'd actually communicate. That two-agent handoff is a natural `examples/02-two-agent-handoff/` to build once Stages 5–7 in the main roadmap feel solid — not included yet, since it's meant to be *your* next exercise, not another script to read.

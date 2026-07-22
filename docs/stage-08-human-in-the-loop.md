@@ -1,6 +1,6 @@
-[← Stage 06](stage-06-multi-agent.md) · Stage 07 of 12 · **Next:** [Stage 08 →](stage-08-evaluation-qa.md)
+[← Stage 07](stage-07-multi-agent.md) · Stage 08 of 13 · **Next:** [Stage 09 →](stage-09-evaluation-qa.md)
 
-# Stage 07 — Human-in-the-Loop Systems
+# Stage 08 — Human-in-the-Loop Systems
 
 Uncertainty detection · approval gates · audit trails · resume logic · intervention points
 
@@ -35,4 +35,4 @@ graph.invoke(None, config={"configurable": {"thread_id": thread_id}})
 You can kill the process mid-run at an approval gate, restart it, and it resumes without re-running completed side effects.
 
 ---
-[← Stage 06 — Multi-Agent Orchestration](stage-06-multi-agent.md) · [Back to roadmap](../README.md) · **Next:** [Stage 08 — Evaluation + Quality Assurance →](stage-08-evaluation-qa.md)
+[← Stage 07 — Multi-Agent Orchestration](stage-07-multi-agent.md) · [Back to roadmap](../README.md) · **Next:** [Stage 09 — Evaluation + Quality Assurance →](stage-09-evaluation-qa.md)

@@ -1,4 +1,4 @@
-[← Stage 01](stage-01-python-async.md) · Stage 02 of 12 · **Next:** [Stage 03 →](stage-03-tool-calling.md)
+[← Stage 01](stage-01-python-async.md) · Stage 02 of 13 · **Next:** [Stage 03 →](stage-03-tool-calling.md)
 
 # Stage 02 — LLM Fundamentals for Agents
 

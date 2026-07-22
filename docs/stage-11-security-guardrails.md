@@ -1,6 +1,6 @@
-[← Stage 09](stage-09-observability.md) · Stage 10 of 12 · **Next:** [Stage 11 →](stage-11-deployment.md)
+[← Stage 10](stage-10-observability.md) · Stage 11 of 13 · **Next:** [Stage 12 →](stage-12-deployment.md)
 
-# Stage 10 — Security + Guardrails
+# Stage 11 — Security + Guardrails
 
 Prompt injection defense · output filtering · PII redaction · sandboxed execution · compliance
 
@@ -35,4 +35,4 @@ def sanitize_tool_output(text: str) -> str:
 A tool result containing "ignore previous instructions and…" gets logged and neutralized, not obeyed.
 
 ---
-[← Stage 09 — Observability + Tracing](stage-09-observability.md) · [Back to roadmap](../README.md) · **Next:** [Stage 11 — Production Deployment →](stage-11-deployment.md)
+[← Stage 10 — Observability + Tracing](stage-10-observability.md) · [Back to roadmap](../README.md) · **Next:** [Stage 12 — Production Deployment →](stage-12-deployment.md)
