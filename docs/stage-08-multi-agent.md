@@ -1,6 +1,6 @@
-[← Stage 06](stage-06-single-agent.md) · Stage 07 of 13 · **Next:** [Stage 08 →](stage-08-human-in-the-loop.md)
+[← Stage 07](stage-07-single-agent.md) · Stage 08 of 14 · **Next:** [Stage 09 →](stage-09-human-in-the-loop.md)
 
-# Stage 07 — Multi-Agent Orchestration
+# Stage 08 — Multi-Agent Orchestration
 
 LangGraph/CrewAI · supervisor patterns · message passing · conflict resolution · handoffs
 
@@ -56,4 +56,4 @@ graph.add_edge("writer", "supervisor")
 You can justify, with your own token/latency numbers, whether a task actually needed multiple agents or would've been cheaper as one.
 
 ---
-[← Stage 06 — Single-Agent Workflows](stage-06-single-agent.md) · [Back to roadmap](../README.md) · **Next:** [Stage 08 — Human-in-the-Loop Systems →](stage-08-human-in-the-loop.md)
+[← Stage 07 — Single-Agent Workflows](stage-07-single-agent.md) · [Back to roadmap](../README.md) · **Next:** [Stage 09 — Human-in-the-Loop Systems →](stage-09-human-in-the-loop.md)

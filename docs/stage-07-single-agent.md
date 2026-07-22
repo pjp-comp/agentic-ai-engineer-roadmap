@@ -1,6 +1,6 @@
-[← Stage 05](stage-05-sessions-state.md) · Stage 06 of 13 · **Next:** [Stage 07 →](stage-07-multi-agent.md)
+[← Stage 06](stage-06-sessions-state.md) · Stage 07 of 14 · **Next:** [Stage 08 →](stage-08-multi-agent.md)
 
-# Stage 06 — Single-Agent Workflows
+# Stage 07 — Single-Agent Workflows
 
 ReAct loops · plan-and-execute · self-reflection · iteration limits · graceful degradation
 
@@ -77,4 +77,4 @@ The difference from the bounded-loop brief above: a crash at step 150 resumes at
 Killing the process mid-run (`kill -9`) and restarting it resumes from the last checkpoint instead of repeating already-finished work, and you have some way — logs, a status file, a dashboard — to tell "still working" apart from "stuck" without staring at raw output.
 
 ---
-[← Stage 05 — Sessions, State + Events](stage-05-sessions-state.md) · [Back to roadmap](../README.md) · **Next:** [Stage 07 — Multi-Agent Orchestration →](stage-07-multi-agent.md)
+[← Stage 06 — Sessions, State + Events](stage-06-sessions-state.md) · [Back to roadmap](../README.md) · **Next:** [Stage 08 — Multi-Agent Orchestration →](stage-08-multi-agent.md)

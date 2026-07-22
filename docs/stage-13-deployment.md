@@ -1,6 +1,6 @@
-[← Stage 11](stage-11-security-guardrails.md) · Stage 12 of 13 · **Next:** [Stage 13 →](stage-13-portfolio.md)
+[← Stage 12](stage-12-security-guardrails.md) · Stage 13 of 14 · **Next:** [Stage 14 →](stage-14-portfolio.md)
 
-# Stage 12 — Production Deployment
+# Stage 13 — Production Deployment
 
 vLLM/SGLang · Kubernetes scaling · CI/CD for agents · canary releases · rollback strategies
 
@@ -34,4 +34,4 @@ Containerize the Stage 9 agent service; write a CI pipeline that runs the Stage 
 A bad deploy auto-rolls-back before it reaches full traffic, with no manual intervention.
 
 ---
-[← Stage 11 — Security + Guardrails](stage-11-security-guardrails.md) · [Back to roadmap](../README.md) · **Next:** [Stage 13 — Open Source + Portfolio →](stage-13-portfolio.md)
+[← Stage 12 — Security + Guardrails](stage-12-security-guardrails.md) · [Back to roadmap](../README.md) · **Next:** [Stage 14 — Open Source + Portfolio →](stage-14-portfolio.md)

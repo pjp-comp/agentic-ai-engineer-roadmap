@@ -1,6 +1,6 @@
-[← Stage 04](stage-04-memory-state.md) · Stage 05 of 13 · **Next:** [Stage 06 →](stage-06-single-agent.md)
+[← Stage 05](stage-05-rag-retrieval.md) · Stage 06 of 14 · **Next:** [Stage 07 →](stage-07-single-agent.md)
 
-# Stage 05 — Sessions, State + Events
+# Stage 06 — Sessions, State + Events
 
 The session object · state vs. events · an in-memory session service · updating context mid-run · inter-agent communication via a shared session
 
@@ -126,4 +126,4 @@ Neither agent has a reference to the other — only to the session. This is why 
 You can explain, without looking it up, why `session.state` should never be mutated directly outside `update_context()` — and a second agent reading the same session can tell what the first one did by reading its `state`, without the two agents ever calling each other's code.
 
 ---
-[← Stage 04 — Memory + State Management](stage-04-memory-state.md) · [Back to roadmap](../README.md) · **Next:** [Stage 06 — Single-Agent Workflows →](stage-06-single-agent.md)
+[← Stage 05 — RAG + Retrieval](stage-05-rag-retrieval.md) · [Back to roadmap](../README.md) · **Next:** [Stage 07 — Single-Agent Workflows →](stage-07-single-agent.md)

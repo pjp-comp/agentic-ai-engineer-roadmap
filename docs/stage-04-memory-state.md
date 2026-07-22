@@ -1,4 +1,4 @@
-[← Stage 03](stage-03-tool-calling.md) · Stage 04 of 13 · **Next:** [Stage 05 →](stage-05-sessions-state.md)
+[← Stage 03](stage-03-tool-calling.md) · Stage 04 of 14 · **Next:** [Stage 05 →](stage-05-rag-retrieval.md)
 
 # Stage 04 — Memory + State Management
 
@@ -91,4 +91,4 @@ If a fourth tier is needed for very long single sessions, add a compression step
 A 100-turn conversation stays under your token budget, the agent still recalls a fact mentioned in turn 3 (short-term), a killed-and-restarted task resumes without repeating finished work (persistent), and a fact saved in one session is recalled correctly in a brand-new session days later (long-term).
 
 ---
-[← Stage 03 — Tool Calling + Structured Outputs](stage-03-tool-calling.md) · [Back to roadmap](../README.md) · **Next:** [Stage 05 — Sessions, State + Events →](stage-05-sessions-state.md)
+[← Stage 03 — Tool Calling + Structured Outputs](stage-03-tool-calling.md) · [Back to roadmap](../README.md) · **Next:** [Stage 05 — RAG + Retrieval →](stage-05-rag-retrieval.md)

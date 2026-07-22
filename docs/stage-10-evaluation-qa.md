@@ -1,6 +1,6 @@
-[← Stage 08](stage-08-human-in-the-loop.md) · Stage 09 of 13 · **Next:** [Stage 10 →](stage-10-observability.md)
+[← Stage 09](stage-09-human-in-the-loop.md) · Stage 10 of 14 · **Next:** [Stage 11 →](stage-11-observability.md)
 
-# Stage 09 — Evaluation + Quality Assurance
+# Stage 10 — Evaluation + Quality Assurance
 
 Automated eval harnesses · LLM-as-a-judge · regression testing · hallucination metrics
 
@@ -39,4 +39,4 @@ def judge(expected: str, actual: str) -> JudgeVerdict:
 A prompt change that breaks something gets caught by your eval suite before a human notices.
 
 ---
-[← Stage 08 — Human-in-the-Loop Systems](stage-08-human-in-the-loop.md) · [Back to roadmap](../README.md) · **Next:** [Stage 10 — Observability + Tracing →](stage-10-observability.md)
+[← Stage 09 — Human-in-the-Loop Systems](stage-09-human-in-the-loop.md) · [Back to roadmap](../README.md) · **Next:** [Stage 11 — Observability + Tracing →](stage-11-observability.md)
