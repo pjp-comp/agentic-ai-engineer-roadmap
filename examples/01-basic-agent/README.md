@@ -14,12 +14,27 @@ This is an **AI agent**, not agentic AI — see the [distinction in the main REA
 
 ## Run it
 
+Managed with [`uv`](https://docs.astral.sh/uv/) — `uv run` creates an isolated virtualenv, installs the locked dependencies, and runs the script in one step, so there's no separate "activate your venv" ritual.
+
 ```bash
 cd examples/01-basic-agent
-pip install -r requirements.txt
+export ANTHROPIC_API_KEY=sk-ant-...
+uv run agent.py "What is 23 * 47, plus 100, all divided by 3?"
+```
+
+The first run downloads dependencies into a local `.venv/` (git-ignored) per the pinned versions in `uv.lock`; every run after that is instant. No `pip install` step, no manual venv activation.
+
+<details>
+<summary>Without <code>uv</code> (plain <code>pip</code>)</summary>
+
+```bash
+cd examples/01-basic-agent
+python -m venv .venv && source .venv/bin/activate
+pip install anthropic
 export ANTHROPIC_API_KEY=sk-ant-...
 python agent.py "What is 23 * 47, plus 100, all divided by 3?"
 ```
+</details>
 
 Expected output (tool calls print to stderr so stdout stays clean):
 
@@ -30,7 +45,7 @@ Expected output (tool calls print to stderr so stdout stays clean):
 393.6666666666667
 ```
 
-Try it without a math question too (`python agent.py "What's the capital of France?"`) — the model should answer directly, with zero tool calls, since `stop_reason` never becomes `"tool_use"`.
+Try it without a math question too (`uv run agent.py "What's the capital of France?"`) — the model should answer directly, with zero tool calls, since `stop_reason` never becomes `"tool_use"`.
 
 ## What to look at closely
 
