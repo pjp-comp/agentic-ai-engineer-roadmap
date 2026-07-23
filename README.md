@@ -32,10 +32,13 @@ The short version: **an AI agent is a component; agentic AI is a system of compo
 
 Before touching a framework, build one agent from raw API calls so the ReAct loop isn't a mystery a library is hiding from you. [`examples/01-basic-agent/`](examples/01-basic-agent/) is a ~120-line Python script: one tool (calculator), one loop, no framework. Run it, then read Stage 7 and Stage 8 knowing exactly what "framework magic" is standing in for.
 
-Once that's comfortable, two follow-ups build on it in different directions:
+Once that's comfortable, three follow-ups build on it in different directions:
 
+- [`examples/01-basic-agent-langchain/`](examples/01-basic-agent-langchain/) — the same agent using LangChain's `ChatAnthropic` + `@tool`, but still a hand-written loop — makes concrete why LangChain alone doesn't replace the loop.
 - [`examples/01-basic-agent-langgraph/`](examples/01-basic-agent-langgraph/) — the same agent, rebuilt on LangGraph's `StateGraph` instead of the raw loop, with a line-by-line comparison of what the framework replaces.
 - [`examples/03-mcp-tool-server/`](examples/03-mcp-tool-server/) — the same agent again, with its one tool moved behind an MCP server, showing what MCP actually changes (and doesn't) versus the plain tool array in example 01.
+
+Read those three in order and you get the full picture: raw API → LangChain's components (still your own loop) → LangGraph's graph (the loop becomes edges).
 
 The natural next step after that toward *agentic* AI is a two-agent handoff — see the note at the bottom of example 01's README for where that lives once you build it.
 

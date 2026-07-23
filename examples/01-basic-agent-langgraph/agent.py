@@ -47,24 +47,59 @@ SYSTEM_PROMPT = (
 )
 
 # --- Tool implementation (identical AST evaluator to example 01) ----------
+#
+# calculate() must never call eval() — the input string comes straight from
+# the model, and eval() would let it run arbitrary Python (e.g. "__import__
+# ('os').system('rm -rf /')"). Instead we parse the string into an AST and
+# walk it ourselves, only ever executing the handful of node types below.
+# Anything else (function calls, attribute access, imports, ...) raises
+# before it's touched.
 
+# Maps each AST operator node type to the actual Python function that
+# performs it. This is the whitelist: if an operator isn't a key in this
+# dict, _eval_node() below refuses to run it.
 _OPS = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
     ast.Mult: operator.mul,
     ast.Div: operator.truediv,
     ast.Pow: operator.pow,
-    ast.USub: operator.neg,
+    ast.USub: operator.neg,  # unary minus, e.g. the "-" in "-5"
 }
 
 
-def _eval_node(node):
+def _eval_node(node: ast.AST) -> float:
+    """Recursively evaluate one node of a parsed expression tree.
+
+    `node` is a piece of the AST produced by ast.parse(expr, mode="eval")
+    — e.g. for "2 + 3 * 4" the top node is a BinOp("+") whose right side is
+    itself a BinOp("*"). This function walks that tree depth-first: each
+    call handles one node and recurses into its children, so the whole
+    expression is reduced to a single number one operator at a time.
+
+    Three cases, each returning early:
+      1. A bare number ("2", "3.5") -> ast.Constant -> return it directly.
+      2. A binary operation ("a + b") -> ast.BinOp -> recursively evaluate
+         both sides, then apply the matching function from _OPS.
+      3. A unary operation ("-a") -> ast.UnaryOp -> recursively evaluate
+         the one operand, then apply the matching function from _OPS.
+
+    Anything that isn't one of these three (a function call, a variable
+    name, a string, ...) falls through to the raise at the bottom — this
+    is what makes the evaluator safe. There's no case that executes
+    arbitrary code, so there's nothing for malicious input to hijack.
+    """
     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
         return node.value
     if isinstance(node, ast.BinOp) and type(node.op) in _OPS:
+        # Recurse into left and right before combining — this is what
+        # makes nested expressions like "(2 + 3) * 4" work: the inner
+        # "2 + 3" is fully resolved to 5 before the outer "* 4" runs.
         return _OPS[type(node.op)](_eval_node(node.left), _eval_node(node.right))
     if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS:
         return _OPS[type(node.op)](_eval_node(node.operand))
+    # Reached only for node types we don't explicitly allow above —
+    # e.g. ast.Call (a function call) or ast.Name (a variable reference).
     raise ValueError(f"Unsupported expression: {ast.dump(node)}")
 
 
@@ -75,9 +110,16 @@ def calculate(expression: str) -> str:
     Call this instead of doing math yourself — it's exact, you aren't.
     """
     try:
+        # mode="eval" parses a single expression (not statements) into a
+        # tree whose root is an ast.Expression wrapping the real content
+        # in .body — that .body is what we hand to _eval_node().
         tree = ast.parse(expression, mode="eval")
         return str(_eval_node(tree.body))
     except Exception as e:
+        # Any parse error or unsupported node lands here — returned as a
+        # normal string, not raised, so the model sees the failure as a
+        # tool result it can react to (e.g. retry with a fixed expression)
+        # instead of the whole agent crashing.
         return f"Error: could not evaluate '{expression}' ({e})"
 
 

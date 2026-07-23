@@ -1,0 +1,12 @@
+[project]
+name = "basic-agent-langchain"
+version = "0.1.0"
+description = "The same calculator agent as example 01, using LangChain's ChatAnthropic + @tool but a hand-written loop — no LangGraph."
+requires-python = ">=3.10"
+dependencies = [
+    "langchain-anthropic>=0.3.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false
