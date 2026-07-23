@@ -90,5 +90,7 @@ if __name__ == "__main__":
 
 That's the whole server — `mcp.tool()` auto-derives the schema from the function signature (same idea as Stage 3's Pydantic validation, but the schema is now discoverable by any MCP client, not just your own code).
 
+**Runnable version:** [`examples/02-mcp-tool-server/`](../examples/02-mcp-tool-server/) takes this exact sketch further — it's example 01's calculator agent with the tool moved behind a real MCP server, so you can run both the server and a Claude-driven client and see the discovery + `call_tool()` round-trip actually happen.
+
 ---
 [← Stage 02 — LLM Fundamentals for Agents](stage-02-llm-fundamentals.md) · [Back to roadmap](../README.md) · **Next:** [Stage 04 — Memory + State Management →](stage-04-memory-state.md)

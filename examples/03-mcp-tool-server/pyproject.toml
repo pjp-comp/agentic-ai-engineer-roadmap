@@ -1,0 +1,12 @@
+[project]
+name = "mcp-tool-server"
+version = "0.1.0"
+description = "The same calculator agent as example 01, with the tool served over MCP instead of hard-coded."
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.40.0",
+    "mcp>=1.2.0",
+]
+
+[tool.uv]
+package = false
