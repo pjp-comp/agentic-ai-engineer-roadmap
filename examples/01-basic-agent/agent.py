@@ -7,15 +7,20 @@ plain text. This is what LangGraph/CrewAI automate for you — seeing
 it unframeworked once makes the framework's job legible.
 
 Usage:
-    export ANTHROPIC_API_KEY=sk-ant-...
+    Put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo root
+    (see .env.example), or export it in your shell — either works.
     python agent.py "What is 23 * 47, plus 100?"
 """
 
 import sys
 import ast
 import operator
+from pathlib import Path
 
 import anthropic
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 MODEL = "claude-opus-4-8"
 MAX_ITERATIONS = 8

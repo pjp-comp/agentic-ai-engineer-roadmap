@@ -32,7 +32,7 @@ The short version: **an AI agent is a component; agentic AI is a system of compo
 
 Before touching a framework, build one agent from raw API calls so the ReAct loop isn't a mystery a library is hiding from you. [`examples/01-basic-agent/`](examples/01-basic-agent/) is a ~120-line Python script: one tool (calculator), one loop, no framework. Run it, then read Stage 7 and Stage 8 knowing exactly what "framework magic" is standing in for.
 
-Once that's comfortable, [`examples/02-mcp-tool-server/`](examples/02-mcp-tool-server/) takes the exact same agent and moves its one tool behind an MCP server — the smallest possible look at what MCP actually changes (and doesn't) versus the plain tool array in example 01.
+Once that's comfortable, [`examples/03-mcp-tool-server/`](examples/03-mcp-tool-server/) takes the exact same agent and moves its one tool behind an MCP server — the smallest possible look at what MCP actually changes (and doesn't) versus the plain tool array in example 01.
 
 The natural next step after that toward *agentic* AI is a two-agent handoff — see the note at the bottom of example 01's README for where that lives once you build it.
 

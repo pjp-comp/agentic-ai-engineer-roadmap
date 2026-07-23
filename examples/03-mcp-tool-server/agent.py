@@ -14,16 +14,21 @@ That's the whole point of MCP: the tool became reusable across any MCP
 client without this file changing if the tool's implementation changes.
 
 Usage:
-    export ANTHROPIC_API_KEY=sk-ant-...
+    Put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo root
+    (see .env.example), or export it in your shell — either works.
     uv run agent.py "What is 23 * 47, plus 100?"
 """
 
 import asyncio
 import sys
+from pathlib import Path
 
 import anthropic
+from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 MODEL = "claude-opus-4-8"
 MAX_ITERATIONS = 8

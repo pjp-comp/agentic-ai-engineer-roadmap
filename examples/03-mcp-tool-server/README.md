@@ -27,11 +27,12 @@ The ReAct loop itself — `messages.create()` → check `stop_reason` → run to
 
 ```bash
 cd examples/03-mcp-tool-server
-export ANTHROPIC_API_KEY=sk-ant-...
 uv run agent.py "What is 23 * 47, plus 100, all divided by 3?"
 ```
 
-`agent.py` starts `server.py` itself (as a subprocess, via `uv run server.py`) — you don't need to run the server separately. The first run downloads dependencies (`anthropic` + `mcp`) into a local `.venv/` per `uv.lock`; every run after is instant.
+`agent.py` loads `ANTHROPIC_API_KEY` from a `.env` file at the repo root (see [`.env.example`](../../.env.example)) via `python-dotenv` — same as [example 01](../01-basic-agent/); no `export` needed. `export ANTHROPIC_API_KEY=sk-ant-...` still works too if you prefer that.
+
+`agent.py` starts `server.py` itself (as a subprocess, via `uv run server.py`) — you don't need to run the server separately. The first run downloads dependencies (`anthropic` + `mcp` + `python-dotenv`) into a local `.venv/` per `uv.lock`; every run after is instant.
 
 Expected output (tool calls print to stderr so stdout stays clean):
 

@@ -5,6 +5,7 @@ description = "A framework-free AI agent: one tool, one ReAct loop, raw Claude A
 requires-python = ">=3.10"
 dependencies = [
     "anthropic>=0.40.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [tool.uv]

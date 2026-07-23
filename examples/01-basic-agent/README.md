@@ -16,13 +16,21 @@ This is an **AI agent**, not agentic AI — see the [distinction in the main REA
 
 Managed with [`uv`](https://docs.astral.sh/uv/) — `uv run` creates an isolated virtualenv, installs the locked dependencies, and runs the script in one step, so there's no separate "activate your venv" ritual.
 
+Set the API key once, at the repo root, and every example picks it up automatically:
+
+```bash
+cp ../../.env.example ../../.env   # from this directory, or just edit the repo-root .env.example
+# then put your real key in ../../.env
+```
+
 ```bash
 cd examples/01-basic-agent
-export ANTHROPIC_API_KEY=sk-ant-...
 uv run agent.py "What is 23 * 47, plus 100, all divided by 3?"
 ```
 
 The first run downloads dependencies into a local `.venv/` (git-ignored) per the pinned versions in `uv.lock`; every run after that is instant. No `pip install` step, no manual venv activation.
+
+`agent.py` loads `../../.env` via `python-dotenv` at startup — no `export` needed in your shell. If you'd rather not use a `.env` file, `export ANTHROPIC_API_KEY=sk-ant-...` still works exactly as before; the export takes precedence if both are set.
 
 <details>
 <summary>Without <code>uv</code> (plain <code>pip</code>)</summary>
@@ -30,7 +38,7 @@ The first run downloads dependencies into a local `.venv/` (git-ignored) per the
 ```bash
 cd examples/01-basic-agent
 python -m venv .venv && source .venv/bin/activate
-pip install anthropic
+pip install anthropic python-dotenv
 export ANTHROPIC_API_KEY=sk-ant-...
 python agent.py "What is 23 * 47, plus 100, all divided by 3?"
 ```
