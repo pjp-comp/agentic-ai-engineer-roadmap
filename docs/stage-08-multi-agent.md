@@ -25,6 +25,8 @@ graph.add_edge("researcher", "supervisor")
 graph.add_edge("writer", "supervisor")
 ```
 
+**New to `StateGraph`?** [`examples/01-basic-agent-langgraph/`](../examples/01-basic-agent-langgraph/) builds the smallest possible one first — a single-node loop, not a supervisor — by rebuilding example 01's raw-API agent on LangGraph, with a line-by-line map of what `StateGraph`, `ToolNode`, and `tools_condition` each replace. Worth running before jumping straight to a two-worker supervisor graph.
+
 ## Sources
 
 ### Learn LangGraph itself (official, start here)
