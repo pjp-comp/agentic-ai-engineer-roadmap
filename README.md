@@ -13,6 +13,35 @@ Stages are ordered by dependency, not difficulty — Stage 8 assumes Stages 3, 6
 
 Treat official docs as ground truth and everything else (courses, blog tutorials) as commentary on it — frameworks like LangGraph ship breaking changes often enough that an older tutorial can mislead you on current APIs.
 
+## Agent basics — what, why, and how
+
+**What is an agent?** An AI agent is a program where an LLM decides what to do next, instead of a developer hard-coding every step. A normal program follows a fixed path you wrote in advance (`if X then Y`). An agent is given a goal and a set of tools, and *the model itself* chooses which tool to call, in what order, based on what it sees — including deciding it's done and returning an answer.
+
+**Why use one instead of a normal script?** Reach for an agent when the steps needed to solve a task can't be known in advance — the right sequence of actions depends on what earlier steps returned. If you can write the exact steps ahead of time, write a normal script instead; it'll be cheaper, faster, and easier to debug. Agents earn their cost specifically on tasks with unpredictable branching (a question might need 0, 1, or 5 tool calls — you don't know until you're in it).
+
+**How does one actually work?** Every agent, no matter the framework, runs the same loop:
+
+1. **Perceive** — the model reads the current conversation/state (the user's task, plus any tool results so far).
+2. **Decide** — the model reasons about what to do next: answer now, or call a tool.
+3. **Act** — if it chose a tool, your code runs that tool (a calculator, a web search, a database query...) and captures the result.
+4. **Observe & repeat** — the tool's result goes back to the model, and the loop returns to step 1 — until the model has enough information to give a final answer, or a safety limit (max iterations) is hit so it can't loop forever.
+
+This is called the **ReAct pattern** (Reason + Act), and it's the same shape whether you write it by hand or a framework writes it for you.
+
+**Minimal example — the actual decision point**, from [`examples/01-basic-agent/agent.py`](examples/01-basic-agent/agent.py):
+
+```python
+response = client.messages.create(model=MODEL, tools=TOOLS, messages=messages)
+
+if response.stop_reason != "tool_use":
+    return final_answer          # step 2 decided: no tool needed, done
+else:
+    result = run_the_tool(...)   # step 3: act
+    messages.append(tool_result)  # step 4: observe, loop back to step 1
+```
+
+Nothing here is magic — it's a `while` loop with an `if` branch. What frameworks like LangGraph add later is a cleaner way to express that same loop once you have more than one tool or more than one agent (see the three worked examples below, which build the identical agent three different ways so you can see exactly what each layer adds).
+
 ## AI Agent vs. Agentic AI — the distinction that matters
 
 These terms get used interchangeably, but they describe different points on a spectrum of autonomy. Knowing which one you're building changes your architecture, your error-handling budget, and how much you can trust the system unattended.
