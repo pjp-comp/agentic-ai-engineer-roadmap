@@ -1,0 +1,13 @@
+[project]
+name = "web-agent-langgraph"
+version = "0.1.0"
+description = "A LangGraph agent that searches the web for recent company news (via Claude's server-side web_search tool) and summarizes it."
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.2.0",
+    "langchain-anthropic>=0.3.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

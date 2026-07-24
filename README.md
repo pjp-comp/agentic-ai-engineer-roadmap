@@ -69,6 +69,13 @@ Once that's comfortable, three follow-ups build on it in different directions:
 
 Read those three in order and you get the full picture: raw API → LangChain's components (still your own loop) → LangGraph's graph (the loop becomes edges).
 
+Once the calculator toy feels solid, two more examples do real agentic work — same task (give it a company name, get a dated, grouped news summary), two different search tools, chosen to make one distinction concrete:
+
+- [`examples/01_web_agent_langgraph/`](examples/01_web_agent_langgraph/) — search via Claude's built-in `web_search`, a **server-side** tool: Anthropic's infrastructure runs the search, so the graph is just one node — no `ToolNode`, because there's nothing left for your code to execute.
+- [`examples/01_web_agent_langgraph_tavily/`](examples/01_web_agent_langgraph_tavily/) — the identical agent and prompt, using [Tavily](https://tavily.com/) instead — a **client-side** tool, so `ToolNode` and the agent↔tools loop are back, same shape as the calculator LangGraph example.
+
+Both refuse to fabricate a summary when search comes up empty — read them back to back and the lesson is: whether a graph needs a `ToolNode` depends entirely on whether the tool runs on your infrastructure or the provider's, not on what the tool does.
+
 The natural next step after that toward *agentic* AI is a two-agent handoff — see the note at the bottom of example 01's README for where that lives once you build it.
 
 ## Stages
