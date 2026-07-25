@@ -14,6 +14,7 @@ Run standalone to sanity-check it speaks the protocol:
 
 import ast
 import operator
+import sys
 
 from mcp.server.fastmcp import FastMCP
 
@@ -45,10 +46,15 @@ def calculate(expression: str) -> str:
 
     Call this instead of doing math yourself — it's exact, you aren't.
     """
+    print(f"[server] received expression: {expression!r}", file=sys.stderr)
     try:
         tree = ast.parse(expression, mode="eval")
-        return str(_eval_node(tree.body))
+        print(f"[server] parsed AST: {ast.dump(tree.body)}", file=sys.stderr)
+        result = str(_eval_node(tree.body))
+        print(f"[server] result: {result}", file=sys.stderr)
+        return result
     except Exception as e:
+        print(f"[server] error: {e}", file=sys.stderr)
         return f"Error: could not evaluate '{expression}' ({e})"
 
 
