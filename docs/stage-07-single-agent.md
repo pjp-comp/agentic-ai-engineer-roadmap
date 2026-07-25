@@ -2,7 +2,7 @@
 
 # Stage 07 — Single-Agent Workflows
 
-Workflow patterns · ReAct loops · plan-and-execute · self-reflection · iteration limits · graceful degradation
+Workflow patterns · ReAct loops · Tree-of-Thought · self-reflection · iteration limits · graceful degradation · cognitive architecture (confidence gating, attention, knowledge boundaries)
 
 ## Why this matters
 
@@ -41,6 +41,7 @@ return degrade_gracefully(state)  # partial answer, not a crash
 | Guide | [Anthropic — Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents) — the source for the six-pattern table below; read this before reaching for the most complex pattern by default |
 | Guide | [ReAct vs Plan-and-Execute vs ReWOO vs Reflexion — compared](https://theaiengineer.substack.com/p/the-4-single-agent-patterns) |
 | Docs | [LangGraph — StateGraph / agent loop primitives](https://docs.langchain.com/oss/python/langgraph/overview) |
+| Book | Michael Yuan — *AI Agents in Action*, 2nd ed. (Manning) — source for Tree-of-Thought and the cognitive-architecture (perception/planning/execution/evaluation/attention) framing below; [repo with runnable examples](https://github.com/cxbxmxcx/AI-Agent-Workflows) |
 
 ## Done when
 
@@ -96,6 +97,7 @@ The ReAct loop above is one of six named patterns from Anthropic's ["Building Ef
 | **Orchestrator-workers** | A central call breaks work into dynamic subtasks, dispatches to workers, synthesizes results | The subtasks aren't known in advance — this is Stage 8's supervisor pattern |
 | **Evaluator-optimizer** | One call generates, a second call critiques against explicit criteria, loop until it passes | There's a clear, checkable quality bar and iterative refinement measurably improves the result — distinct from this stage's Reflexion/stagnation check, which reacts to a *stuck* loop rather than running a dedicated critic every pass |
 | **Autonomous agents (ReAct)** | Open-ended loop: the model decides its own steps until done | The path to the answer genuinely can't be predetermined — this stage's pattern, and the most expensive one to get wrong |
+| **Tree-of-Thought (ToT)** | Explores multiple reasoning branches at once, evaluates each, backtracks from dead ends | A single reasoning chain (plain CoT/ReAct) is prone to committing early to a wrong path and a problem has a search-like structure (puzzles, multi-step planning with backtracking) — costs multiples of a single ReAct pass, since you're running several branches |
 
 Anthropic's own framing is worth internalizing verbatim: **start with the simplest pattern (or no framework at all) and add complexity only when it demonstrably improves outcomes.** A prompt chain that works is better than an autonomous agent that's harder to debug for the same result. This stage teaches the most powerful pattern in the table, not the default one — pick it because the task needs it, not because it's the most sophisticated option available.
 
@@ -107,6 +109,25 @@ Everything above assumes a text-in, text-out loop — the model reasons, calls a
 - **Voice/realtime agents** — a persistent streaming connection (WebSocket/WebRTC) instead of discrete request/response calls, with sub-500ms latency budgets and interruption ("barge-in") handling. This is architecturally distinct enough from the ReAct loop in this stage that it's effectively a separate track — see the [voice-agent orchestration tooling overview](https://www.assemblyai.com/blog/orchestration-tools-ai-voice-agents) if that's the direction a project needs.
 
 Both are legitimate production categories now, not research demos — they're flagged here rather than built out because they change the I/O model this entire roadmap is built around, and are worth a dedicated project once the text-based patterns above are solid.
+
+## From reasoning primitives to a cognitive architecture
+
+Everything above — ReAct, Reflexion, ToT, the workflow-pattern table — are reasoning *primitives*: techniques you reach for per call or per loop. A **cognitive architecture** is a step up from that: a fixed set of modules the agent runs through every cycle, so "thinking" isn't just prompting technique but a repeatable structure. The five modules worth knowing, from the "cognitive agent" pattern popularized by Michael Yuan's *AI Agents in Action* (2nd ed., Manning):
+
+| Module | Job | How it differs from what's already in this roadmap |
+|---|---|---|
+| **Perception** | Reads the current state and incoming input | Same as "Perceive" in the ReAct loop above — no new concept |
+| **Planning** | Decides the next step or sub-goal | Same as "Decide" — this stage's workflow-pattern table already covers the options |
+| **Execution** | Runs the chosen action | Same as "Act" — Stage 3's tool calling |
+| **Evaluation** | Scores its own output against the goal, every cycle — not just when stuck | **New**: this stage's stagnation check only reflects when a loop is visibly stuck (same action/result twice). A dedicated evaluation module runs every cycle, catching a plan that's technically progressing but drifting off-goal, which a stagnation check would never trigger on |
+| **Attention** | Decides what part of the accumulated context is relevant *right now*, and deliberately ignores the rest | **New**: distinct from Stage 2's context budgeting (which prunes for token cost) — attention filters for *relevance*, not size; a context window can be well within budget and still have the model reasoning over stale or irrelevant history because nothing tells it what to ignore |
+
+Two behaviors this architecture adds that pure ReAct+Reflexion doesn't have a name for:
+
+- **Confidence-gated execution** — before acting, the agent scores its own confidence in the plan; below a threshold, it seeks more information (asks a clarifying question, does another retrieval pass) instead of acting on a low-confidence guess. This is stricter than Reflexion, which only intervenes after an action visibly fails or repeats — confidence gating can stop a bad action *before* it runs once.
+- **Knowledge-boundary awareness** — the agent explicitly represents what it doesn't know (distinct from Stage 5's "don't trust weak retrieval" check in CRAG), so it can say "I don't have enough information" as a first-class outcome rather than only reaching that conclusion after retrieval comes up empty.
+
+Whether this is worth building as actual separate modules or just borrowing the *vocabulary* (evaluation-every-cycle, attention-as-filtering, confidence gating) to sharpen an existing ReAct+Reflexion loop is a judgment call — for most single-agent projects, folding confidence-gating and an explicit "what am I unsure about" check into the existing loop gets most of the benefit without the full module architecture.
 
 ---
 [← Stage 06 — Sessions, State + Events](stage-06-sessions-state.md) · [Back to roadmap](../README.md) · **Next:** [Stage 08 — Multi-Agent Orchestration →](stage-08-multi-agent.md)

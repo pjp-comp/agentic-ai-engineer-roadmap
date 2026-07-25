@@ -119,8 +119,8 @@ The natural next step after that toward *agentic* AI is a two-agent handoff — 
 | 04 | [Memory + State Management](docs/stage-04-memory-state.md) | Short-term, persistent, and long-term memory as three distinct composable pieces |
 | 05 | [RAG + Retrieval](docs/stage-05-rag-retrieval.md) | Vector databases, chunking, naive vs. hybrid vs. agentic RAG, corrective RAG (CRAG), retrieval vs. tool calls |
 | 06 | [Sessions, State + Events](docs/stage-06-sessions-state.md) | The session object, state vs. events, an in-memory session service, updating context, inter-agent communication via shared sessions |
-| 07 | [Single-Agent Workflows](docs/stage-07-single-agent.md) | The six Anthropic workflow patterns, ReAct loops, self-reflection, iteration limits, graceful degradation, long-running agents, computer-use/voice agents |
-| 08 | [Multi-Agent Orchestration](docs/stage-08-multi-agent.md) | Framework landscape (LangGraph/CrewAI/ADK/OpenAI Agents SDK/Pydantic AI/Mastra), supervisor patterns, message passing, conflict resolution, handoffs, A2A protocol |
+| 07 | [Single-Agent Workflows](docs/stage-07-single-agent.md) | The six Anthropic workflow patterns, Tree-of-Thought, ReAct loops, self-reflection, iteration limits, graceful degradation, long-running agents, cognitive architecture (confidence gating, attention, knowledge boundaries), computer-use/voice agents |
+| 08 | [Multi-Agent Orchestration](docs/stage-08-multi-agent.md) | Framework landscape (LangGraph/CrewAI/ADK/OpenAI Agents SDK/Pydantic AI/Mastra), supervisor patterns, message passing, conflict resolution, handoffs + inline guardrails, A2A protocol |
 | 09 | [Human-in-the-Loop Systems](docs/stage-09-human-in-the-loop.md) | Uncertainty detection, approval gates, audit trails, resume logic, intervention points |
 | 10 | [Evaluation + Quality Assurance](docs/stage-10-evaluation-qa.md) | Automated eval harnesses, LLM-as-judge, regression testing, hallucination metrics, eval vs. red-teaming |
 | 11 | [Observability + Tracing](docs/stage-11-observability.md) | Distributed tracing, cost dashboards, latency monitoring, alerting |
