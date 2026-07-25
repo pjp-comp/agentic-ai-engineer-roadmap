@@ -8,6 +8,13 @@ Prompt injection defense · agentic-specific risks (goal hijacking, memory poiso
 
 Prompt injection has held the #1 spot on OWASP's LLM Top 10 across every edition. Once an agent has tools with real side effects, untrusted content (a webpage, an email, a file) becomes an attack surface. Assume the model will occasionally be tricked, and design containment — least-privilege tools, output validation, sandboxing — rather than relying on the model to "just not fall for it."
 
+## Beginner focus
+
+- Detect and flag prompt-injection patterns in tool output.
+- Use a strict tool allowlist per role.
+- Block high-risk actions by default.
+- Add full red-teaming after baseline guardrails work.
+
 ## Brief
 
 Add a guard layer: strip/flag instructions found inside tool-returned content before it re-enters the prompt, enforce a tool allowlist per agent role, and run any code-execution tool in a sandboxed subprocess with no filesystem/network access by default.

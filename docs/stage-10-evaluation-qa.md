@@ -8,6 +8,13 @@ Automated eval harnesses · LLM-as-a-judge · regression testing · hallucinatio
 
 Unlike deterministic software, agent behavior drifts as prompts, models, and tools change. Without a fixed eval set and a repeatable scoring method, you can't tell a genuine improvement from noise — or catch a regression before a user does.
 
+## Beginner focus
+
+- Start with 10 to 15 test cases.
+- Use a small, clear rubric.
+- Track one headline metric: pass rate.
+- Add complex metrics after baseline stability.
+
 ## Brief
 
 Build a golden dataset of 30–50 input/expected-behavior pairs. Run them against the agent on every change, score with a rubric-based LLM judge (not vague "rate 1-10"), and fail CI if the pass rate drops below baseline.
