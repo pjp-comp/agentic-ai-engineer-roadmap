@@ -4,8 +4,6 @@ A sequenced, 14-stage curriculum from async Python fundamentals to shipping obse
 
 - **Prepared:** 2026-07-17
 - **Pace:** ~4–7 months at 8–10 hrs/week
-- **Track:** Python-first
-- **Live version:** [Artifact page](https://claude.ai/code/artifact/b9e34e22-9c4a-4c3f-9994-ba13f7a7b463)
 
 ## How to use this
 
