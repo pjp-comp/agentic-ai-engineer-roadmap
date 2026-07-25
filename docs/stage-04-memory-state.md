@@ -8,6 +8,13 @@ Short-term buffers · long-term vector recall · context compression · cross-se
 
 Context windows are finite and expensive; naive "append everything to the prompt" degrades both cost and accuracy past a few dozen turns. Real agents need three distinct memory types, not one — conflating them is the most common mistake here.
 
+## Beginner focus
+
+- Start with short-term memory first.
+- Add persistent checkpointing second.
+- Keep long-term memory optional in your first project.
+- Skip context compression on the first pass.
+
 ## The three memory types
 
 | Type | Lifespan | Where it lives | Purpose |

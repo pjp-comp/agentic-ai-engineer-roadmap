@@ -8,6 +8,13 @@ Pydantic validation · function calling schemas · error recovery · dynamic too
 
 Tool calling is the interface between model reasoning and the real world. Loose schemas and silent validation failures are the single biggest source of "the agent did something weird" bugs — Pydantic makes the contract explicit and catches malformed calls before they execute.
 
+## Beginner focus
+
+- Build only one tool first.
+- Validate one input schema with Pydantic.
+- Handle one validation error path.
+- Skip MCP until the basic tool loop works.
+
 ## Brief
 
 Define a tool with a strict Pydantic input schema, force the model to call it via `tool_choice`, validate the arguments, and on a validation error, feed the error back to the model as a correction turn instead of crashing.

@@ -13,6 +13,37 @@ Stages are ordered by dependency, not difficulty — Stage 8 assumes Stages 3, 6
 
 Treat official docs as ground truth and everything else (courses, blog tutorials) as commentary on it — frameworks like LangGraph ship breaking changes often enough that an older tutorial can mislead you on current APIs.
 
+## Beginner Track (Simple)
+
+If you are a beginner, follow this path first and keep the goal narrow: build one stable single-agent application before adding advanced architecture.
+
+Beginner order:
+
+1. [Stage 01 — Python + Async Foundations](docs/stage-01-python-async.md)
+2. [Stage 02 — LLM Fundamentals for Agents](docs/stage-02-llm-fundamentals.md)
+3. [Stage 03 — Tool Calling + Structured Outputs](docs/stage-03-tool-calling.md)
+4. [Stage 04 — Memory + State Management](docs/stage-04-memory-state.md)
+5. [Stage 06 — Sessions, State + Events](docs/stage-06-sessions-state.md)
+6. [Stage 07 — Single-Agent Workflows](docs/stage-07-single-agent.md)
+7. [Stage 10 — Evaluation + Quality Assurance](docs/stage-10-evaluation-qa.md)
+8. [Stage 11 — Observability + Tracing](docs/stage-11-observability.md)
+9. [Stage 12 — Security + Guardrails](docs/stage-12-security-guardrails.md)
+10. [Stage 13 — Production Deployment](docs/stage-13-deployment.md)
+
+Optional later (after your first stable project):
+
+- [Stage 05 — RAG + Retrieval](docs/stage-05-rag-retrieval.md)
+- [Stage 08 — Multi-Agent Orchestration](docs/stage-08-multi-agent.md)
+- [Stage 09 — Human-in-the-Loop Systems](docs/stage-09-human-in-the-loop.md)
+- [Stage 14 — Open Source + Portfolio](docs/stage-14-portfolio.md)
+
+Beginner rules:
+
+- Start with one model.
+- Start with one tool.
+- Start with one agent.
+- Add complexity only after a stable baseline.
+
 ## Agent basics — what, why, and how
 
 **What is an agent?** An AI agent is a program where an LLM decides what to do next, instead of a developer hard-coding every step. A normal program follows a fixed path you wrote in advance (`if X then Y`). An agent is given a goal and a set of tools, and *the model itself* chooses which tool to call, in what order, based on what it sees — including deciding it's done and returning an answer.

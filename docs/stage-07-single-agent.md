@@ -8,6 +8,13 @@ Workflow patterns · ReAct loops · plan-and-execute · self-reflection · itera
 
 Before orchestrating multiple agents, get one agent reliably looping: reason → act → observe → decide, with a hard ceiling on iterations and a defined fallback when it can't converge. This is the load-bearing pattern everything in Stage 8 builds on.
 
+## Beginner focus
+
+- Build one simple ReAct loop first.
+- Add a max-iteration limit.
+- Add a graceful fallback response.
+- Skip advanced workflow variants on your first build.
+
 ## Brief
 
 Implement a ReAct loop with a max-iteration cap and a stagnation check (same action + same result 2× in a row triggers a forced reflection step, per the Reflexion pattern).
