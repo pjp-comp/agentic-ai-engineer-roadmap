@@ -10,7 +10,7 @@ A multi-agent run spans dozens of LLM calls, tool invocations, and state transit
 
 ## Brief
 
-Instrument the Stage 6 supervisor graph with tracing so every node emits a span with input/output, token counts, latency, and cost; build one dashboard view that surfaces p95 latency and $/run.
+Instrument the Stage 8 supervisor graph with tracing so every node emits a span with input/output, token counts, latency, and cost; build one dashboard view that surfaces p95 latency and $/run.
 
 ```python
 os.environ["LANGCHAIN_TRACING_V2"] = "true"

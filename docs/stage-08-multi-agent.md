@@ -2,7 +2,7 @@
 
 # Stage 08 — Multi-Agent Orchestration
 
-LangGraph/CrewAI · supervisor patterns · message passing · conflict resolution · handoffs
+Framework landscape (LangGraph/CrewAI/ADK/OpenAI Agents SDK/Pydantic AI/Mastra) · supervisor patterns · message passing · conflict resolution · handoffs · A2A cross-agent protocol
 
 ## Why this matters
 
@@ -27,7 +27,39 @@ graph.add_edge("writer", "supervisor")
 
 **New to `StateGraph`?** [`examples/01-basic-agent-langgraph/`](../examples/01-basic-agent-langgraph/) builds the smallest possible one first — a single-node loop, not a supervisor — by rebuilding example 01's raw-API agent on LangGraph, with a line-by-line map of what `StateGraph`, `ToolNode`, and `tools_condition` each replace. Worth running before jumping straight to a two-worker supervisor graph.
 
+## Beyond LangGraph/CrewAI — the wider 2026 framework field
+
+LangGraph and CrewAI are one reasonable default, not the whole field. Knowing what else exists matters when a project's constraints (language, team preference, or a specific pattern the framework makes easy) point elsewhere:
+
+| Framework | Language | Fits when |
+|---|---|---|
+| **LangGraph** | Python/JS | You want the explicit graph model this stage teaches — nodes, edges, and state you control directly |
+| **CrewAI** | Python | Role-based "crews" (a more opinionated, less explicit alternative to LangGraph's graph) |
+| **Google Agent Development Kit (ADK)** | Python/Java | Already cited in [Stage 6](stage-06-sessions-state.md) for its session/state/event model — also a full orchestration framework in its own right, with first-class multi-agent support |
+| **OpenAI Agents SDK** | Python/JS | The production successor to OpenAI's earlier Swarm experiment — built-in agent-as-tool and handoff patterns, minimal abstraction over raw API calls |
+| **Pydantic AI** | Python | Type-safe agent definitions via Pydantic models — increasingly the pick for single-agent-with-tools work where LangGraph's graph machinery is more than the task needs |
+| **Mastra** | TypeScript | The de facto default for TypeScript/Node agent projects, filling the role LangGraph/CrewAI play in Python |
+
+None of these change the underlying patterns from Stage 7 (routing, orchestrator-workers, evaluator-optimizer, ReAct) — they're different amounts of scaffolding around the same ideas. Picking one is a team/language/opinionatedness decision, not a capability decision.
+
+## A2A — agent-to-agent, across vendors and processes
+
+Stage 6's shared-session pattern is how two agents communicate *inside one process, one framework*. That doesn't extend to agents built by different teams on different frameworks that need to talk to each other — a supervisor written in LangGraph calling a specialist agent someone else built in CrewAI, for instance. **A2A (Agent2Agent)**, now a Linux Foundation project with broad industry backing, is the emerging standard for exactly that: each agent publishes an "Agent Card" describing its capabilities, and agents negotiate and exchange tasks over a defined protocol — independent of what either side is built with.
+
+This is a different layer from MCP: MCP is agent↔tool (Stage 3); A2A is agent↔agent, across process and vendor boundaries. For a single-framework project like the supervisor pattern in this stage's brief, you don't need it — shared session state is simpler and sufficient. Reach for A2A only when a project genuinely needs to interoperate with an agent it doesn't control the framework for.
+
 ## Sources
+
+### Framework landscape and A2A
+
+| Type | Resource |
+|------|----------|
+| Guide | [LangChain — Best AI agent frameworks 2026](https://www.langchain.com/resources/ai-agent-frameworks) |
+| Guide | [morphllm — 8 agent SDKs compared](https://www.morphllm.com/ai-agent-framework) |
+| Docs | [Google Agent Development Kit](https://google.github.io/adk-docs/) |
+| Docs | [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) |
+| Spec | [A2A Protocol specification](https://a2a-protocol.org/latest/specification/) |
+| Guide | [A2A in 2026 — Adoption, Hype, Reality](https://www.glukhov.org/ai-systems/comparisons/a2a-protocol-2026-adoption/) |
 
 ### Learn LangGraph itself (official, start here)
 

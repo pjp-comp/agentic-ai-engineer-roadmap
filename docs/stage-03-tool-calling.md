@@ -34,6 +34,7 @@ except ValidationError as e:
 | Docs | [Pydantic v2 — official docs](https://docs.pydantic.dev/latest/) |
 | Library | [Instructor — structured extraction on top of Claude](https://python.useinstructor.com/integrations/anthropic/) |
 | Spec | [Model Context Protocol — official spec](https://modelcontextprotocol.io/) — see the MCP vs. API section below |
+| Course | [DeepLearning.AI × Anthropic — Agent Skills with Anthropic](https://www.deeplearning.ai/courses/agent-skills-with-anthropic) — reusable Skills as an alternative to embedding workflow logic directly in prompts |
 
 ## Done when
 
@@ -91,6 +92,10 @@ if __name__ == "__main__":
 That's the whole server — `mcp.tool()` auto-derives the schema from the function signature (same idea as Stage 3's Pydantic validation, but the schema is now discoverable by any MCP client, not just your own code).
 
 **Runnable version:** [`examples/03-mcp-tool-server/`](../examples/03-mcp-tool-server/) takes this exact sketch further — it's example 01's calculator agent with the tool moved behind a real MCP server, so you can run both the server and a Claude-driven client and see the discovery + `call_tool()` round-trip actually happen.
+
+## A third paradigm: computer-use tools
+
+Plain API calls and MCP both assume the tool has an API — a defined schema the model fills in. Some tasks genuinely don't have one: a legacy internal app with no API, a site that only exposes a UI. **Computer-use tools** are the answer for that case: instead of a schema, the model perceives a screenshot and issues GUI actions (click, type, scroll) — same `tool_use`/`tool_result` mechanics as everything else in this stage, just with pixel coordinates and screen state instead of typed parameters. It's a last resort, not a default — reach for it only when there's genuinely no API to call, since it's slower and less reliable than a schema-defined tool. See [Stage 7's note on computer-use and voice agents](stage-07-single-agent.md#beyond-requestresponse-computer-use-and-voice-agents) for where this fits alongside the request/response tool-calling this stage teaches.
 
 ---
 [← Stage 02 — LLM Fundamentals for Agents](stage-02-llm-fundamentals.md) · [Back to roadmap](../README.md) · **Next:** [Stage 04 — Memory + State Management →](stage-04-memory-state.md)

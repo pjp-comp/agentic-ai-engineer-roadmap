@@ -10,7 +10,7 @@ Kubernetes earns its keep only once you need horizontal scaling, multi-tenant is
 
 ## Brief
 
-Containerize the Stage 9 agent service; write a CI pipeline that runs the Stage 8 eval suite as a merge gate; deploy behind a canary (5% traffic) with automatic rollback if error rate or eval pass-rate regresses.
+Containerize the Stage 9 agent service; write a CI pipeline that runs the Stage 10 eval suite as a merge gate; deploy behind a canary (5% traffic) with automatic rollback if error rate or eval pass-rate regresses.
 
 ```yaml
 # CI gate (excerpt)

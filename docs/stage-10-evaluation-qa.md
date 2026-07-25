@@ -34,6 +34,10 @@ def judge(expected: str, actual: str) -> JudgeVerdict:
 | Guide | [Hands-on comparison: LangSmith, Langfuse, Arize evals](https://www.analyticsvidhya.com/blog/2026/06/agent-observability-with-langsmith-langfuse-arize/) |
 | Concept | Search "LLM-as-judge rubric design" — avoid single-score judges, use structured multi-criteria rubrics |
 
+## Eval vs. red-teaming — two different questions
+
+This stage's golden dataset answers "does the agent still behave correctly on cases we already know about?" — a regression check against *known-good* behavior. It does not answer "can an adversarial user find a way to break it?" — that's a distinct discipline (automated red-teaming, adversarial multi-turn simulation) covered in [Stage 12](stage-12-security-guardrails.md#testing-for-these--red-teaming-not-just-eval), because the risks it's testing for (goal hijacking, memory poisoning) are security concerns, not correctness regressions. The two feed each other: every red-team finding that succeeds should become a new case in *this* stage's golden dataset, so the same attack can never work twice without being caught.
+
 ## Done when
 
 A prompt change that breaks something gets caught by your eval suite before a human notices.

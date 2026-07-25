@@ -91,7 +91,7 @@ print(len(session.events))  # full audit trail, in order
 
 ## Two agents communicating through a shared session
 
-This is the mechanism underneath Stage 7's supervisor pattern, made explicit. Two agents don't call each other directly — they read and write **the same session's state**, and communicate by watching for events the other one emitted. This is what "message passing" and "handoffs" (Stage 7's vocabulary) actually resolve to at the state layer:
+This is the mechanism underneath Stage 8's supervisor pattern, made explicit. Two agents don't call each other directly — they read and write **the same session's state**, and communicate by watching for events the other one emitted. This is what "message passing" and "handoffs" (Stage 8's vocabulary) actually resolve to at the state layer:
 
 ```python
 def researcher_turn(session: Session):

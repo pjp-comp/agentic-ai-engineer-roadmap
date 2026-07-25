@@ -83,17 +83,17 @@ The natural next step after that toward *agentic* AI is a two-agent handoff — 
 | # | Stage | Core topics |
 |---|-------|--------------|
 | 01 | [Python + Async Foundations](docs/stage-01-python-async.md) | asyncio, FastAPI, event-driven architecture, error handling, API integration |
-| 02 | [LLM Fundamentals for Agents](docs/stage-02-llm-fundamentals.md) | Context management, model routing, token economics, latency tradeoffs, failure modes |
-| 03 | [Tool Calling + Structured Outputs](docs/stage-03-tool-calling.md) | Pydantic validation, function schemas, error recovery, dynamic tool discovery, MCP vs. plain APIs |
+| 02 | [LLM Fundamentals for Agents](docs/stage-02-llm-fundamentals.md) | Context engineering, model routing, token economics, cost optimization, latency tradeoffs, failure modes |
+| 03 | [Tool Calling + Structured Outputs](docs/stage-03-tool-calling.md) | Pydantic validation, function schemas, error recovery, dynamic tool discovery, MCP vs. plain APIs, computer-use tools |
 | 04 | [Memory + State Management](docs/stage-04-memory-state.md) | Short-term, persistent, and long-term memory as three distinct composable pieces |
 | 05 | [RAG + Retrieval](docs/stage-05-rag-retrieval.md) | Vector databases, chunking, naive vs. hybrid vs. agentic RAG, corrective RAG (CRAG), retrieval vs. tool calls |
 | 06 | [Sessions, State + Events](docs/stage-06-sessions-state.md) | The session object, state vs. events, an in-memory session service, updating context, inter-agent communication via shared sessions |
-| 07 | [Single-Agent Workflows](docs/stage-07-single-agent.md) | ReAct loops, plan-and-execute, self-reflection, iteration limits, graceful degradation, long-running agents |
-| 08 | [Multi-Agent Orchestration](docs/stage-08-multi-agent.md) | LangGraph/CrewAI, supervisor patterns, message passing, conflict resolution, handoffs |
+| 07 | [Single-Agent Workflows](docs/stage-07-single-agent.md) | The six Anthropic workflow patterns, ReAct loops, self-reflection, iteration limits, graceful degradation, long-running agents, computer-use/voice agents |
+| 08 | [Multi-Agent Orchestration](docs/stage-08-multi-agent.md) | Framework landscape (LangGraph/CrewAI/ADK/OpenAI Agents SDK/Pydantic AI/Mastra), supervisor patterns, message passing, conflict resolution, handoffs, A2A protocol |
 | 09 | [Human-in-the-Loop Systems](docs/stage-09-human-in-the-loop.md) | Uncertainty detection, approval gates, audit trails, resume logic, intervention points |
-| 10 | [Evaluation + Quality Assurance](docs/stage-10-evaluation-qa.md) | Automated eval harnesses, LLM-as-judge, regression testing, hallucination metrics |
+| 10 | [Evaluation + Quality Assurance](docs/stage-10-evaluation-qa.md) | Automated eval harnesses, LLM-as-judge, regression testing, hallucination metrics, eval vs. red-teaming |
 | 11 | [Observability + Tracing](docs/stage-11-observability.md) | Distributed tracing, cost dashboards, latency monitoring, alerting |
-| 12 | [Security + Guardrails](docs/stage-12-security-guardrails.md) | Prompt injection defense, output filtering, PII redaction, sandboxed execution, compliance |
+| 12 | [Security + Guardrails](docs/stage-12-security-guardrails.md) | Prompt injection defense, agentic-specific risks (goal hijacking, memory poisoning, cascading failures), red-teaming, output filtering, PII redaction, sandboxed execution, compliance |
 | 13 | [Production Deployment](docs/stage-13-deployment.md) | vLLM/SGLang, Kubernetes scaling, CI/CD for agents, canary releases, rollback strategies |
 | 14 | [Open Source + Portfolio](docs/stage-14-portfolio.md) | Ship autonomous agents publicly, architecture docs, demos, OSS contributions |
 
