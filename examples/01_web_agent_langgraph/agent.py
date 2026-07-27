@@ -28,7 +28,7 @@ from langgraph.graph import END, START, MessagesState, StateGraph
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-MODEL = "claude-opus-4-8"
+MODEL = "claude-haiku-4-5"
 
 SYSTEM_PROMPT = """\
 You are a financial news research assistant. Given a company name, use the \

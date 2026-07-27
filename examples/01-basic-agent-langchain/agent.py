@@ -39,7 +39,7 @@ from langchain_core.tools import tool
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-MODEL = "claude-opus-4-8"
+MODEL = "claude-haiku-4-5"
 MAX_ITERATIONS = 8
 SYSTEM_PROMPT = (
     "You are a precise assistant. For any arithmetic, always use "

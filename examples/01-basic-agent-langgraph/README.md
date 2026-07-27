@@ -16,7 +16,7 @@ Read `01-basic-agent/` first. This example exists to answer one question directl
 | `if response.stop_reason != "tool_use": return ...` | `tools_condition` (a conditional graph edge) | The branch that decided whether to keep looping or return the final answer |
 | `for step in range(MAX_ITERATIONS): ...` | `StateGraph` with `agent` → `tools` → `agent` edges + `recursion_limit` | The loop itself — iteration is expressed as graph edges, not a `for` statement |
 
-The tool (`calculate`, the same AST-based evaluator — no `eval()`) and the model (`claude-opus-4-8`) are identical. Nothing about *what* the agent can do changed; only *how the loop is expressed* changed.
+The tool (`calculate`, the same AST-based evaluator — no `eval()`) and the model (`claude-haiku-4-5`) are identical. Nothing about *what* the agent can do changed; only *how the loop is expressed* changed.
 
 ## What it is
 
