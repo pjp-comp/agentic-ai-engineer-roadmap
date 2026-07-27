@@ -2,7 +2,7 @@
 
 # Stage 04 — Memory + State Management
 
-Short-term buffers · long-term vector recall · context compression · cross-session sync
+Short-term buffers · long-term vector recall · context compression · cross-session sync · forgetting/eviction policies
 
 ## Why this matters
 
@@ -84,6 +84,50 @@ class AgentMemory:
 
 If a fourth tier is needed for very long single sessions, add a compression step (an LLM-generated running summary replacing anything that ages out of the short-term window) — but build the three above first; compression is an optimization on top, not a fourth foundational type.
 
+## Forgetting and eviction — long-term memory needs a cleanup policy too
+
+Long-term memory that only ever grows becomes a liability, not an asset: retrieval quality degrades as near-duplicate and stale facts crowd out the vector search, storage cost climbs unbounded, and data-retention rules (GDPR-style "right to be forgotten," or an internal policy on how long user data can be kept) require you to actually be able to delete things — not just stop referencing them. "Forgetting" here isn't a bug to avoid, it's a feature to build deliberately.
+
+Three policies cover most real systems, and they compose (use more than one):
+
+| Policy | What it does | When to reach for it |
+|---|---|---|
+| **TTL (time-to-live)** | Delete a memory after N days/months regardless of use | Compliance-driven deletion, or facts that are only relevant for a known window (e.g. "user's current project") |
+| **LRU-style decay** | Lower a memory's retrieval score the longer it goes unaccessed; evict the lowest-scoring entries when storage hits a cap | Bounding storage growth without a hard deadline — lets frequently-useful facts survive indefinitely while stale ones fade |
+| **Supersession on write** | When a new fact contradicts an old one (e.g. "user's email is X" replaces a prior "user's email is Y"), mark the old one superseded instead of leaving both to be retrieved | Prevents contradictory facts from both surfacing in the same retrieval and confusing the model — this one matters even in a *small* memory store |
+
+```python
+import time
+
+class LongTermMemory:
+    def __init__(self, vector_store, ttl_days: int = 180):
+        self.vector_store = vector_store
+        self.ttl_seconds = ttl_days * 86400
+
+    async def remember(self, fact: str, metadata: dict, supersedes: str | None = None):
+        if supersedes:
+            # Mark the old fact superseded rather than deleting outright —
+            # keeps an audit trail while stopping it from being retrieved.
+            await self.vector_store.aupdate_metadata(supersedes, {"superseded": True})
+        metadata = {**metadata, "created_at": time.time(), "superseded": False}
+        await self.vector_store.aadd_texts([fact], metadatas=[metadata])
+
+    async def recall(self, query: str, k=4) -> list[str]:
+        results = await self.vector_store.asimilarity_search(
+            query, k=k, filter={"superseded": False}
+        )
+        cutoff = time.time() - self.ttl_seconds
+        return [r.page_content for r in results if r.metadata["created_at"] > cutoff]
+
+    async def evict_expired(self):
+        """Run on a schedule (e.g. nightly), not per-request — eviction is
+        cleanup, not something that should add latency to a live turn."""
+        cutoff = time.time() - self.ttl_seconds
+        await self.vector_store.adelete(filter={"created_at": {"$lt": cutoff}})
+```
+
+A more sophisticated option some production systems use is clustering near-duplicate memories (e.g. with k-means) and replacing a cluster of redundant facts with one merged summary — this earns its complexity once you have thousands of memories with genuine overlap; for most projects, TTL + decay + supersession get you most of the benefit for a fraction of the engineering cost. Start with those three before reaching for clustering.
+
 ## Sources
 
 | Type | Resource |
@@ -92,10 +136,12 @@ If a fourth tier is needed for very long single sessions, add a compression step
 | Tutorial | [DigitalOcean — Long-term memory with LangGraph + Mem0](https://www.digitalocean.com/community/tutorials/langgraph-mem0-integration-long-term-ai-memory) |
 | Repo | [FareedKhan-dev — long-term memory reference implementation](https://github.com/FareedKhan-dev/langgraph-long-memory) |
 | Tool | pgvector (Postgres), Chroma (local/embedded), Pinecone/Weaviate (managed) |
+| Blog | [mem0.ai — Memory eviction and forgetting in AI agents](https://mem0.ai/blog/memory-eviction-and-forgetting-in-ai-agents) |
+| Guide | [Zylos Research — Agent memory compression and state budget management](https://zylos.ai/research/2026-06-30-agent-memory-compression-state-budget-management/) |
 
 ## Done when
 
-A 100-turn conversation stays under your token budget, the agent still recalls a fact mentioned in turn 3 (short-term), a killed-and-restarted task resumes without repeating finished work (persistent), and a fact saved in one session is recalled correctly in a brand-new session days later (long-term).
+A 100-turn conversation stays under your token budget, the agent still recalls a fact mentioned in turn 3 (short-term), a killed-and-restarted task resumes without repeating finished work (persistent), a fact saved in one session is recalled correctly in a brand-new session days later (long-term), and a fact you deliberately mark superseded no longer shows up in retrieval results (forgetting).
 
 ---
 [← Stage 03 — Tool Calling + Structured Outputs](stage-03-tool-calling.md) · [Back to roadmap](../README.md) · **Next:** [Stage 05 — RAG + Retrieval →](stage-05-rag-retrieval.md)
