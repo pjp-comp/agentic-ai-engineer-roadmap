@@ -64,7 +64,7 @@ Try it without a math question too (`uv run agent.py "What's the capital of Fran
 
 ## Extend it (optional exercises)
 
-1. Add a second tool (e.g. a `word_count` tool) and watch the model choose between them based on the task.
+1. Add a second tool (e.g. a `word_count` tool) and watch the model choose between them based on the task — or see it already done in [`examples/01_multi_tool_agent/`](../01_multi_tool_agent/), which adds four tools and a dispatch table.
 2. Force a tool error (e.g. `calculate("1/0")`) and confirm the model recovers instead of crashing — this is the `is_error` pattern from [Stage 3](../../docs/stage-03-tool-calling.md).
 3. Add a hard iteration cap test: ask a question that can't be answered with the calculator tool and confirm the loop still terminates cleanly via `MAX_ITERATIONS`.
 
