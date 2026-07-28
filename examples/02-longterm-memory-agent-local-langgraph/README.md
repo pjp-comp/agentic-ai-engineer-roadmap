@@ -48,18 +48,21 @@ uv run agent.py --forget    # clear long-term facts only (chat log untouched)
 ## What to look at closely
 
 - **`save_fact` is a real tool, bound with `.bind_tools(TOOLS)`** — same mechanism as [`examples/01-basic-agent-langgraph/`](../01-basic-agent-langgraph/)'s `calculate` tool. Long-term memory here isn't a framework feature; it's a normal tool call whose side effect happens to be "write to a file the system prompt reads from."
-- **The system prompt explicitly tells the model when *not* to call the tool** ("Don't call it for one-off questions or small talk") — and even with that instruction, the local model still over-calls it (see "A real limitation" below). Prompting alone doesn't fully constrain tool-call judgment; that's worth knowing before you rely on this pattern for anything real.
+- **Two model instances, not one** — `_build_llm()` returns `(llm, llm_text_only)`: the same underlying model, but only `llm` has `save_fact` bound. After a tool call, the follow-up "now answer the user" turn is sent through `llm_text_only`. This isn't cosmetic — a small local model (Llama 3.2 3B) that still has `tools` bound will often re-issue the *same* tool call again instead of producing a text reply, even when the prompt explicitly tells it to just answer. Removing the tool binding for that second pass makes a text reply the only possible output, instead of relying on prompting alone.
+- **The system prompt gives concrete save/don't-save examples, not just a rule** — a one-line instruction ("don't call it for small talk") was not enough for the local model to reliably follow; see "A real limitation" below for what still gets through even with examples.
 - **Facts are injected into *every* system prompt, unconditionally** — there's no retrieval step (no "is this fact relevant to the current question?" filter) because there's no similarity search here, just a flat list. Fine for a handful of facts; this is exactly where a real vector store starts to earn its complexity — see "Where this goes next."
 - **`--reset` vs. `--forget` are deliberately separate flags** — clearing conversation history and clearing durable facts are different operations with different blast radii, matching Stage 4's point that short-term/persistent/long-term are different tiers with different lifetimes, not one memory system.
 
 ## A real limitation, shown honestly
 
-Running the same "weather today / 5+5 / small talk" exchange against both model paths surfaces a genuine difference, not a hidden one:
+Running the same conversation against both model paths surfaces a genuine, reproducible gap, not a hidden one:
 
-- **Local (Llama 3.2 3B)**: over-calls `save_fact` — it saved `weather_today: unknown` after being asked about the weather, and `math_facts: 10` after a simple arithmetic question, even though the system prompt explicitly says not to save one-off answers.
-- **Claude (claude-haiku-4-5)**: correctly skipped both, and only called `save_fact` when a genuinely durable fact ("my name is pragnesh") showed up.
+- **Local (Llama 3.2 3B)**: reliably calls `save_fact` for genuine facts (name, a scheduled date), and the two-instance fix above stops it from replacing its actual answer with tool-call narration. It still occasionally re-saves a fact that's already present in "Known facts" instead of recognizing it's redundant — harmless (same key, same value, a no-op overwrite) but a real sign the model isn't checking its own context before acting.
+- **Claude (claude-haiku-4-5)**: correctly saves only genuine new facts, skips small talk and one-off answers (arithmetic, "ok thanks") entirely, and never re-saves something already known.
 
-This isn't a bug in this example's code — both models saw the identical tool description and system prompt. It's a real capability gap: smaller open-weight models are less reliable at judging *when* a tool should fire, not just at formatting the call correctly. Worth knowing before you trust a small local model's tool-call judgment in anything beyond a learning exercise — the `save_fact` tool itself is safe to over-call (worst case, a harmless fact gets saved), but a tool with real side effects (send an email, charge a card) being over-called by an eager small model is a genuine production risk, not a curiosity.
+This isn't a bug in this example's code — both models saw the identical tool description and system prompt. It's a real capability gap: smaller open-weight models are less reliable at judging *when* a tool should fire and whether it's already been fired, not just at formatting the call correctly. Worth knowing before you trust a small local model's tool-call judgment in anything beyond a learning exercise — `save_fact` is safe to over-call (worst case, a redundant overwrite), but a tool with real side effects (send an email, charge a card) being re-triggered by an eager small model is a genuine production risk, not a curiosity.
+
+If you hit an agent that answers *completely* off-topic after a tool call (e.g. replying to "ok thanks" with "I've saved your fact" instead of acknowledging the "ok thanks"), that's the bug the two-instance fix above addresses — if you still see it, the model likely needs the same tools-unbound-follow-up treatment applied somewhere it isn't yet.
 
 ## Where this goes next
 

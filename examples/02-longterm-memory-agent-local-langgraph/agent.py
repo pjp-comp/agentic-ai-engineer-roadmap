@@ -59,11 +59,20 @@ SYSTEM_PROMPT = (
     "You are a helpful, concise assistant. Only answer using what's in the "
     "current conversation or in Known facts below — if something was never "
     "mentioned or saved, say you don't know it.\n\n"
-    "When the user tells you something worth remembering permanently — "
-    "their name, a preference, a plan, a scheduled date, anything they'd "
-    "expect you to still know in a future conversation — call the "
-    "save_fact tool with a short key and the value. Don't call it for "
-    "one-off questions or small talk, only for facts worth keeping."
+    "Most messages need NO tool call at all — just answer directly. Only "
+    "call save_fact when the user states a specific, durable fact about "
+    "themselves or a plan (their name, a preference, a scheduled date) "
+    "AND it is not already present in Known facts below.\n\n"
+    "Examples of what TO save: \"my name is Alex\" -> save_fact(name, Alex). "
+    "\"we start on the 30th\" -> save_fact(start_date, 30th).\n"
+    "Examples of what NOT to save: questions (\"what should I learn "
+    "first?\"), acknowledgements (\"ok thanks\"), commands (\"git status\"), "
+    "answers you just gave (a topic recommendation, a calculation), or "
+    "anything already listed in Known facts. If in doubt, do not call the "
+    "tool — just answer the question.\n\n"
+    "After a tool call, always follow up by directly answering what the "
+    "user actually asked — never let a tool call replace your answer to "
+    "their message."
 )
 
 
@@ -158,18 +167,29 @@ TOOLS = [save_fact]
 
 
 # --- Model selection (identical pattern to 02-memory-agent-local-langgraph) --
+#
+# Two instances of the same underlying model: `llm` has save_fact bound so
+# it can choose to call it, and `llm_text_only` does NOT — it's used only
+# for the follow-up answer after a tool call. This matters specifically
+# for small local models: Llama 3.2 3B, once it has tool_calls in its own
+# recent history, tends to re-issue the same tool call again even when
+# explicitly told to just answer in plain text — bind_tools isn't just a
+# hint, it changes what the model is willing to output. Removing the tool
+# binding entirely for that second pass makes a text reply the only
+# possible output, instead of relying on prompting alone to redirect it.
 
 def _build_llm():
     if USE_LOCAL_MODEL:
         from langchain_ollama import ChatOllama
 
         print(f"  [model] local via Ollama: {LOCAL_MODEL}", file=sys.stderr)
-        return ChatOllama(model=LOCAL_MODEL, temperature=0.3).bind_tools(TOOLS)
+        base = ChatOllama(model=LOCAL_MODEL, temperature=0.3)
     else:
         from langchain_anthropic import ChatAnthropic
 
         print(f"  [model] Claude API: {CLAUDE_MODEL}", file=sys.stderr)
-        return ChatAnthropic(model=CLAUDE_MODEL, max_tokens=1024).bind_tools(TOOLS)
+        base = ChatAnthropic(model=CLAUDE_MODEL, max_tokens=1024)
+    return base.bind_tools(TOOLS), base
 
 
 def _system_prompt(long_term: LongTermMemory) -> str:
@@ -187,7 +207,7 @@ def _to_lc_messages(turns: list[dict], long_term: LongTermMemory) -> list:
 def run_chat() -> None:
     global _long_term_store
 
-    llm = _build_llm()
+    llm, llm_text_only = _build_llm()
     persistent = PersistentState(STATE_FILE)
     short_term = ShortTermMemory()
     long_term = LongTermMemory(FACTS_FILE)
@@ -232,13 +252,28 @@ def run_chat() -> None:
         # second turn to respond in plain text — mirrors the ReAct loop from
         # examples/01-basic-agent, just bounded to at most one tool round
         # trip per user message since this agent only has one tool.
+        #
+        # The explicit HumanMessage nudge after the tool result matters: a
+        # small model left to continue straight from its own tool_calls turn
+        # tends to keep narrating the save ("I've saved that fact...")
+        # instead of answering what the user actually asked. Re-pointing it
+        # at the original question fixes that — without it, "ok thanks" or
+        # "what should I learn first?" gets a save-confirmation instead of
+        # a real reply.
         if response.tool_calls:
             messages.append(response)
             for call in response.tool_calls:
                 print(f"  [tool call] {call['name']}({call['args']})", file=sys.stderr)
                 result = save_fact.invoke(call["args"])
                 messages.append(ToolMessage(content=result, tool_call_id=call["id"]))
-            response = llm.invoke(messages)
+            messages.append(
+                HumanMessage(
+                    content=(
+                        f"Now directly answer my original message: {user_input!r}"
+                    )
+                )
+            )
+            response = llm_text_only.invoke(messages)
 
         reply = response.content or "(no text response)"
         print(f"agent> {reply}\n")
