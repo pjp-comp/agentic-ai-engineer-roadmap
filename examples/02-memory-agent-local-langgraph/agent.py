@@ -17,11 +17,15 @@ What this adds on top of that example:
                     is rebuilt from the last WINDOW_SIZE turns in the file,
                     not lost on restart.
 
-Long-term (vector) memory from Stage 4 is intentionally NOT included here —
-it needs a vector store dependency this repo doesn't otherwise require, and
-the short-term/persistent split is the part that's easiest to feel by
-running something. See docs/stage-04-memory-state.md for the vector-backed
-LongTermMemory class if you want to extend this yourself.
+Long-term memory from Stage 4 is intentionally NOT included here — this
+example only covers the first two tiers. That means facts WILL still be
+forgotten once a conversation runs past WINDOW_SIZE turns, by design: ask
+something in turn 1, keep chatting past turn 20, and asking about it again
+gets an honest "I don't know" — that's the short-term tier's tradeoff, not
+a bug. If you want a fact to survive indefinitely regardless of window
+size, that's what the long-term tier is for; see the separate long-term
+memory example once it exists, or docs/stage-04-memory-state.md's
+LongTermMemory class to build it yourself.
 
 Usage:
     uv run agent.py                 # interactive chat
@@ -43,7 +47,7 @@ USE_LOCAL_MODEL = os.getenv("USE_LOCAL_MODEL", "false").strip().lower() == "true
 LOCAL_MODEL = os.getenv("LOCAL_MODEL", "llama3.2:3b")
 CLAUDE_MODEL = "claude-haiku-4-5"
 
-WINDOW_SIZE = 6  # short-term memory holds the last 6 turns (3 exchanges)
+WINDOW_SIZE = 20  # short-term memory holds the last 20 turns (10 exchanges)
 STATE_FILE = Path(__file__).parent / ".chat_state.json"
 SYSTEM_PROMPT = (
     "You are a helpful, concise assistant. Only answer using what's in the "

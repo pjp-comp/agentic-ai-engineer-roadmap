@@ -6,9 +6,9 @@ A multi-turn chat agent that makes the first two memory tiers from [Stage 4 — 
 
 ## What it is
 
-- **`ShortTermMemory`** — a `deque(maxlen=6)` (3 exchanges). Every new turn pushes the oldest one out. Nothing is summarized — what's inside the window is recalled exactly; what's outside it is gone from the model's context, full stop.
+- **`ShortTermMemory`** — a `deque(maxlen=20)` (10 exchanges). Every new turn beyond that pushes the oldest one out. Nothing is summarized — what's inside the window is recalled exactly; what's outside it is gone from the model's context, full stop.
 - **`PersistentState`** — the full conversation checkpointed to a local JSON file (`.chat_state.json`, gitignored) after every turn. Kill the process (Ctrl+C) and run it again: it resumes instead of starting over.
-- **No long-term (vector) memory here on purpose** — that tier needs a vector store dependency this repo doesn't otherwise pull in. See the `LongTermMemory` class in [Stage 4's doc](../../docs/stage-04-memory-state.md#the-three-memory-types) if you want to extend this example yourself; the short-term/persistent split is the part that's easiest to *feel* by actually running something, so that's what this example focuses on.
+- **No long-term memory here — read this before you rely on it for anything real.** This example only implements the first two of Stage 4's three tiers. That means **any fact will eventually be forgotten** once your conversation runs past `WINDOW_SIZE` turns — even facts you explicitly asked it to remember, even across a restart, because `PersistentState` only rehydrates the *last* `WINDOW_SIZE` turns into the live window (older turns stay in the JSON file, but the model never sees them again). If you ask it to "remember" something and then chat for a while, expect it to eventually forget — that's the tier this example is teaching, not a defect. A separate long-term-memory example (durable facts, independent of window position) is planned; see [Stage 4's `LongTermMemory` class](../../docs/stage-04-memory-state.md#the-three-memory-types) if you want to build that piece yourself in the meantime.
 
 ## Run it
 
@@ -19,18 +19,15 @@ cd examples/02-memory-agent-local-langgraph
 uv run agent.py
 ```
 
-It drops you into an interactive chat. Try this to watch the window evict a fact:
+It drops you into an interactive chat. Say something worth remembering, then send enough other messages to push it out of the 20-turn window, then ask about it again:
 
 ```
 you> My secret code is banana77.
-you> Hi
-you> How are you
-you> Tell me a fact about the moon
-you> What is 5+5?
+you> (chat about anything else for ~10 more exchanges)
 you> What was my secret code?
 ```
 
-By the sixth exchange, the first turn ("My secret code is banana77") has been pushed out of the 6-turn window — the agent will honestly say it doesn't know, because it genuinely no longer has that turn in context. That's not a bug being demonstrated; it's the actual tradeoff **every** bounded-context system makes, shown directly instead of described abstractly.
+Once the "secret code" turn has scrolled past the last 20 messages, the agent will honestly say it doesn't know — because it genuinely no longer has that turn in context. That's not a bug; it's the actual tradeoff **every** bounded-context system makes, shown directly instead of described abstractly. (This is exactly what happens if you chat with it about your name, then a scheduling plan, then keep going for several more exchanges — the older facts quietly drop out first.)
 
 Now try persistence — say something, quit, and restart:
 
@@ -59,7 +56,4 @@ uv run agent.py --reset
 
 ## Where this goes next
 
-Two natural extensions, both sketched already in [Stage 4](../../docs/stage-04-memory-state.md):
-
-1. **Long-term memory** — swap `PersistentState`'s flat JSON file for a real vector store and add the `LongTermMemory.remember()`/`recall()` methods from the stage doc, so facts survive not just a restart but an entirely new conversation days later.
-2. **Forgetting/eviction policies** — once you have long-term memory, [Stage 4's forgetting section](../../docs/stage-04-memory-state.md#forgetting-and-eviction--long-term-memory-needs-a-cleanup-policy-too) covers TTL, LRU-style decay, and supersession-on-write — the same "old turns fall off" idea this example shows at the short-term tier, applied to a store that doesn't naturally bound itself the way a `deque` does.
+This example stops at short-term + persistent on purpose. The natural next step is a **separate long-term-memory example** — a durable fact store (e.g. "user's name is Pragnesh," "scheduled to start July 30") that's saved explicitly and injected into every turn's context regardless of where it sits in the conversation history, so it survives long past `WINDOW_SIZE` and even into a brand-new conversation days later. That maps to the `LongTermMemory` class in [Stage 4](../../docs/stage-04-memory-state.md#the-three-memory-types), and once it exists, [Stage 4's forgetting section](../../docs/stage-04-memory-state.md#forgetting-and-eviction--long-term-memory-needs-a-cleanup-policy-too) (TTL, LRU-style decay, supersession-on-write) is the natural follow-up on top of it.
