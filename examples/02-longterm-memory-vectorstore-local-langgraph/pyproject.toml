@@ -1,0 +1,15 @@
+[project]
+name = "longterm-memory-vectorstore-local-langgraph"
+version = "0.1.0"
+description = "Long-term memory backed by a real local vector store (ChromaDB), with semantic recall instead of dumping every fact into every prompt."
+requires-python = ">=3.10"
+dependencies = [
+    "langchain-core>=0.3.0",
+    "langchain-anthropic>=0.3.0",
+    "langchain-ollama>=0.2.0",
+    "langchain-chroma>=0.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

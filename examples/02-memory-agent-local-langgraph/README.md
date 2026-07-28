@@ -47,9 +47,13 @@ Clear saved state and start over:
 uv run agent.py --reset
 ```
 
+## Token cost stays flat, on purpose
+
+The model has no memory of its own between calls — [`llm.invoke(_to_lc_messages(short_term.get()))`](agent.py) re-sends the *entire* current window as input on every single turn; there's no session state inside Ollama or the Claude API carrying context forward for you. That means token cost per call is directly proportional to how many turns are in `short_term.get()` at that moment — which is exactly why `WINDOW_SIZE` matters here: because it's a bounded `deque`, that number never exceeds 20 turns, so cost per call plateaus once you're past turn 20, instead of climbing forever as the conversation grows. A naive version with no cap (just append every turn, never evict) would resend more tokens on every call for as long as the conversation continues, until you eventually hit the model's context-window limit outright — see [Stage 2's context-budget note](../../docs/stage-02-llm-fundamentals.md) and [Stage 4's opening warning](../../docs/stage-04-memory-state.md) about exactly this failure mode.
+
 ## What to look at closely
 
-- **`ShortTermMemory.buffer` is a `deque(maxlen=...)`** — the eviction is Python doing the work, not application logic you wrote; that's the entire implementation of "forgetting" at this tier.
+- **`ShortTermMemory.buffer` is a `deque(maxlen=...)`** — the eviction is Python doing the work, not application logic you wrote; that's the entire implementation of "forgetting" at this tier, and it's also what keeps token cost bounded (see above).
 - **`PersistentState` checkpoints the *full*, unbounded history** — deliberately different scope from short-term memory. Persistent state's job is "don't lose the conversation on a crash," not "bound what the model sees" — those are two different problems solved by two different tiers, which is exactly the point Stage 4 makes about not merging memory types into one class.
 - **`_build_llm()` is called lazily, inside `run_chat()`, not at module import time** — `--reset` never constructs a model client, so clearing state works even if Ollama isn't running or no API key is set. Worth noticing because the naive version (build the client at the top of the file) silently couples an unrelated code path to your model configuration.
 - **`short_term.load(turns[-window:])` on resume** — only the last `WINDOW_SIZE` turns from the saved file get loaded into the live short-term window; older turns exist in the JSON file (persistent tier) but are correctly *not* replayed into the model's active context, matching the behavior it would have had if the process had never restarted.

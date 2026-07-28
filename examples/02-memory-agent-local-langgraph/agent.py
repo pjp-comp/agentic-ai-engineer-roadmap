@@ -124,6 +124,26 @@ def _to_lc_messages(turns: list[dict]) -> list:
     return lc_messages
 
 
+def _print_token_usage(response) -> None:
+    # Both ChatOllama and ChatAnthropic populate response.usage_metadata
+    # with the same shape ({"input_tokens", "output_tokens", "total_tokens"})
+    # — this is what makes the "in=... out=... total=..." line below the
+    # same for either model path, with no per-provider branching needed.
+    # This is the real, concrete cost driver behind the "Token cost stays
+    # flat" section in the README: input_tokens grows with WINDOW_SIZE, not
+    # with total conversation length, because short_term.get() is bounded.
+    usage = getattr(response, "usage_metadata", None)
+    if not usage:
+        print("  [tokens] not reported by this model", file=sys.stderr)
+        return
+    print(
+        f"  [tokens] in={usage['input_tokens']} "
+        f"out={usage['output_tokens']} "
+        f"total={usage['total_tokens']}",
+        file=sys.stderr,
+    )
+
+
 def run_chat() -> None:
     llm = _build_llm()
     persistent = PersistentState(STATE_FILE)
@@ -158,7 +178,9 @@ def run_chat() -> None:
 
         response = llm.invoke(_to_lc_messages(short_term.get()))
         reply = response.content or "(no text response)"
-        print(f"agent> {reply}\n")
+        print(f"agent> {reply}")
+        _print_token_usage(response)
+        print()
 
         short_term.add("assistant", reply)
         all_turns.append({"role": "assistant", "content": reply})

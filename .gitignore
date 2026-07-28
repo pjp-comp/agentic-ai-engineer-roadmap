@@ -7,3 +7,4 @@ venv/
 .env
 .chat_state.json
 .long_term_facts.json
+.chroma_facts/
