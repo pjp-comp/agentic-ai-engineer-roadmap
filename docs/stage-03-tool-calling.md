@@ -19,6 +19,10 @@ Tool calling is the interface between model reasoning and the real world. Loose 
 
 Define a tool with a strict Pydantic input schema, force the model to call it via `tool_choice`, validate the arguments, and on a validation error, feed the error back to the model as a correction turn instead of crashing.
 
+The mechanics below (`tool_call.input`, `tool_choice`) are Claude's specific field names — every tool-calling API has an equivalent shape (OpenAI nests arguments as a JSON string under `tool_calls[i].function.arguments`; Gemini uses `functionCall.args`), but the validate-then-feed-the-error-back pattern is the same regardless of provider:
+
+**Claude API example:**
+
 ```python
 class SearchArgs(BaseModel):
     query: str = Field(min_length=1, max_length=200)
@@ -37,6 +41,7 @@ except ValidationError as e:
 | Type | Resource |
 |------|----------|
 | Docs | [Claude Platform Docs — Tool use overview](https://platform.claude.com/docs/en/build-with-claude/tool-use) |
+| Docs | [OpenAI — Function calling](https://developers.openai.com/api/docs/guides/function-calling) — the same concept (schema-defined tools the model can invoke) under OpenAI's naming and JSON-schema conventions |
 | Docs | [Claude Platform Docs — Structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) |
 | Docs | [Pydantic v2 — official docs](https://docs.pydantic.dev/latest/) |
 | Library | [Instructor — structured extraction on top of Claude](https://python.useinstructor.com/integrations/anthropic/) |
@@ -63,7 +68,9 @@ MCP (Model Context Protocol) is not a replacement for REST APIs, and it isn't ma
 
 ### Consuming an existing MCP server (the common case)
 
-Most developers *use* MCP servers before they ever build one. Claude's Messages API can connect to a remote MCP server directly — no client-side tool execution loop needed:
+Most developers *use* MCP servers before they ever build one. MCP itself is vendor-neutral — the protocol works the same regardless of which model client is speaking it — but how a given client connects to a remote MCP server is provider-specific API surface. Claude's Messages API can connect directly, no client-side tool execution loop needed:
+
+**Claude API example:**
 
 ```python
 response = client.beta.messages.create(

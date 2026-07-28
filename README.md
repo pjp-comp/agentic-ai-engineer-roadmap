@@ -57,7 +57,9 @@ Beginner rules:
 
 This is called the **ReAct pattern** (Reason + Act), and it's the same shape whether you write it by hand or a framework writes it for you.
 
-**Minimal example — the actual decision point**, from [`examples/01-basic-agent/agent.py`](examples/01-basic-agent/agent.py):
+**Minimal example — the actual decision point**, from [`examples/01-basic-agent/agent.py`](examples/01-basic-agent/agent.py). This example is built on Claude's API, but the decision point itself is universal: every tool-calling API has some field that tells you "the model wants to call a tool" instead of answering directly — Claude spells it `stop_reason == "tool_use"`, OpenAI spells it `finish_reason == "tool_calls"`, Gemini returns a `functionCall` part instead of text. Same branch, different field name:
+
+**Claude API example:**
 
 ```python
 response = client.messages.create(model=MODEL, tools=TOOLS, messages=messages)
@@ -101,7 +103,7 @@ Read those three in order and you get the full picture: raw API → LangChain's 
 
 Once the calculator toy feels solid, two more examples do real agentic work — same task (give it a company name, get a dated, grouped news summary), two different search tools, chosen to make one distinction concrete:
 
-- [`examples/01_web_agent_langgraph/`](examples/01_web_agent_langgraph/) — search via Claude's built-in `web_search`, a **server-side** tool: Anthropic's infrastructure runs the search, so the graph is just one node — no `ToolNode`, because there's nothing left for your code to execute.
+- [`examples/01_web_agent_langgraph/`](examples/01_web_agent_langgraph/) — search via Claude's built-in `web_search`, a **server-side** tool (the same category as OpenAI's hosted `web_search` tool or Gemini's grounding-with-search): the provider's own infrastructure runs the search, so the graph is just one node — no `ToolNode`, because there's nothing left for your code to execute.
 - [`examples/01_web_agent_langgraph_tavily/`](examples/01_web_agent_langgraph_tavily/) — the identical agent and prompt, using [Tavily](https://tavily.com/) instead — a **client-side** tool, so `ToolNode` and the agent↔tools loop are back, same shape as the calculator LangGraph example.
 
 Both refuse to fabricate a summary when search comes up empty — read them back to back and the lesson is: whether a graph needs a `ToolNode` depends entirely on whether the tool runs on your infrastructure or the provider's, not on what the tool does.

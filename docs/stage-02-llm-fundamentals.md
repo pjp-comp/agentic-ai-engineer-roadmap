@@ -12,6 +12,10 @@ Agent cost and latency are dominated by model choice and context size, not your 
 
 Build a router that classifies incoming requests by complexity (regex/heuristic first, cheap-model classifier second) and sends "simple" ones to a fast/cheap model, "complex" ones to a frontier model. Log tokens, latency, and $ per request for both paths.
 
+This cheap/fast-vs-frontier tiering pattern is universal, not Claude-specific — every major provider ships at least two tiers for exactly this tradeoff (OpenAI's GPT-5 mini vs. GPT-5, Gemini's Flash vs. Pro). The snippet below uses Claude's model names as this repo's concrete stand-in:
+
+**Claude API example:**
+
 ```python
 def route(task_complexity: str) -> str:
     return {
@@ -28,7 +32,9 @@ def route(task_complexity: str) -> str:
 | Type | Resource |
 |------|----------|
 | Docs | [Claude Platform Docs — Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) |
+| Docs | [OpenAI — Prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) — same concept, different provider; worth comparing cache-write/read pricing and prefix rules against Claude's |
 | Docs | [Claude Platform Docs — Model pricing & context windows](https://platform.claude.com/docs/en/about-claude/pricing) |
+| Docs | [OpenAI — API pricing](https://developers.openai.com/api/docs/pricing) — cross-provider pricing and model-tier comparison |
 | Docs | [Claude Platform Docs — Choosing a model](https://platform.claude.com/docs/en/about-claude/models/choosing-a-model) |
 | Course | DeepLearning.AI short courses on LLM application fundamentals (free) |
 | Guide | [Sourcegraph — Context Engineering Guide](https://sourcegraph.com/blog/context-engineering) — why this superseded "prompt engineering" as the primary practitioner skill |

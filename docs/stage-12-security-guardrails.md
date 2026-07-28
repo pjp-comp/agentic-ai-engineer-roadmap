@@ -47,10 +47,10 @@ None of these are hypothetical add-ons — they're what "prompt injection" turns
 
 | Type | Resource |
 |------|----------|
-| Standard | [OWASP Top 10 for LLM Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/) |
+| Standard | [OWASP Top 10 for LLM Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/) — the vendor-neutral reference for tool-use and LLM-application risk; treat this as ground truth over any single provider's guidance |
 | Standard | [OWASP Top 10 for Agentic Applications — full guide](https://www.aikido.dev/blog/owasp-top-10-agentic-applications) |
 | Guide | [Prompt Injection in 2026 — OWASP's #1 LLM threat](https://www.kunalganglani.com/blog/prompt-injection-2026-owasp-llm-vulnerability) |
-| Docs | [Claude Platform Docs — safe tool-use design](https://platform.claude.com/docs/en/build-with-claude/tool-use) |
+| Docs | [Claude Platform Docs — safe tool-use design](https://platform.claude.com/docs/en/build-with-claude/tool-use) — one provider's mitigation guidance on top of the OWASP standard above, not a substitute for it |
 | Tool | NeMo Guardrails, LLM-Guard, Llama Guard 3 — off-the-shelf guardrail frameworks |
 | Repo | [LLMSecurityGuide — OWASP GenAI risks, red-teaming tool catalog](https://github.com/requie/LLMSecurityGuide) |
 | Guide | [Confident AI — best AI red-teaming tools 2026](https://www.confident-ai.com/knowledge-base/compare/best-ai-red-teaming-tools-2026) |
