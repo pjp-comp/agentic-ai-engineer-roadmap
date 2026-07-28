@@ -23,9 +23,9 @@ forgotten once a conversation runs past WINDOW_SIZE turns, by design: ask
 something in turn 1, keep chatting past turn 20, and asking about it again
 gets an honest "I don't know" — that's the short-term tier's tradeoff, not
 a bug. If you want a fact to survive indefinitely regardless of window
-size, that's what the long-term tier is for; see the separate long-term
-memory example once it exists, or docs/stage-04-memory-state.md's
-LongTermMemory class to build it yourself.
+size, that's what the long-term tier is for — see
+examples/02-longterm-memory-agent-local-langgraph, which builds on this
+exact file and adds a save_fact tool + durable JSON fact store on top.
 
 Usage:
     uv run agent.py                 # interactive chat

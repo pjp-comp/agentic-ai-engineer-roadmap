@@ -110,6 +110,14 @@ Both refuse to fabricate a summary when search comes up empty — read them back
 
 The natural next step after that toward *agentic* AI is a two-agent handoff — see the note at the bottom of example 01's README for where that lives once you build it.
 
+## Running for free, offline, with an open-weight model
+
+Every example above calls the Claude API. That's a reasonable default, but the ReAct loop and tool-calling contract aren't Claude-specific — any tool-calling model can fill that role. Three examples make this concrete, wired up with a `USE_LOCAL_MODEL` flag in `.env` that switches between a free local model (via [Ollama](https://ollama.com/)) and the Claude API with no other code changes:
+
+- [`examples/02-basic-agent-local-langgraph/`](examples/02-basic-agent-local-langgraph/) — the calculator agent from example 01, runnable against a free local model (Llama 3.2 3B) instead of Claude — same graph, one `if` branch decides which model answers.
+- [`examples/02-memory-agent-local-langgraph/`](examples/02-memory-agent-local-langgraph/) — a multi-turn chat agent demonstrating [Stage 4](docs/stage-04-memory-state.md)'s short-term (bounded window) and persistent (checkpoint-to-disk) memory tiers — watch a fact age out of context once the conversation runs past the window, then watch a restart resume correctly.
+- [`examples/02-longterm-memory-agent-local-langgraph/`](examples/02-longterm-memory-agent-local-langgraph/) — adds Stage 4's third tier on top of the memory example above: a `save_fact` tool and durable JSON fact store, so a fact survives regardless of window size or session boundary — plus an honest, measured comparison of how much more reliably Claude judges *when* to call that tool versus the small local model.
+
 ## Stages
 
 | # | Stage | Core topics |
