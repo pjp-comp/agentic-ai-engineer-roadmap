@@ -2,7 +2,7 @@
 
 # Example 02b — A Memory Agent (Short-Term + Persistent), Running Locally
 
-A multi-turn chat agent that makes the first two memory tiers from [Stage 4 — Memory + State Management](../../docs/stage-04-memory-state.md) concrete and watchable: **short-term memory** (a bounded window of recent turns) and **persistent state** (checkpointed to disk so a killed process resumes). Runs against the same free local Ollama model as [`examples/02-basic-agent-local-langgraph/`](../02-basic-agent-local-langgraph/), or the Claude API — same `USE_LOCAL_MODEL` switch.
+A multi-turn chat agent that makes the first two memory tiers from [Stage 4 — Memory + State Management](../../docs/stage-04-memory-state.md) concrete and watchable: **short-term memory** (a bounded window of recent turns) and **persistent state** (checkpointed to disk so a killed process resumes). Runs against the same free local Ollama model as [`examples/02-basic-agent-local-langgraph/`](../02-basic-agent-local-langgraph/) by default, or the Claude API if you set `USE_LOCAL_MODEL=false`.
 
 ## What it is
 
@@ -12,7 +12,7 @@ A multi-turn chat agent that makes the first two memory tiers from [Stage 4 — 
 
 ## Run it
 
-Same setup as [`examples/02-basic-agent-local-langgraph/`](../02-basic-agent-local-langgraph/) — install Ollama, `ollama pull llama3.2:3b`, set `USE_LOCAL_MODEL=true` in your repo-root `.env` — or leave it `false`/unset to use the Claude API instead.
+Same setup as [`examples/02-basic-agent-local-langgraph/`](../02-basic-agent-local-langgraph/) — install Ollama, `ollama pull llama3.2:3b`. `USE_LOCAL_MODEL=true` is the default in `.env.example`, so there's nothing to flip unless you want the Claude API instead (`USE_LOCAL_MODEL=false`).
 
 ```bash
 cd examples/02-memory-agent-local-langgraph

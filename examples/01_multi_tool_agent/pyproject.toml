@@ -1,10 +1,11 @@
 [project]
 name = "multi-tool-agent"
 version = "0.1.0"
-description = "A framework-free AI agent with four tools, showing tool selection, not just tool use."
+description = "A framework-free AI agent with four tools, showing tool selection, not just tool use. Local Ollama by default, or Claude."
 requires-python = ">=3.10"
 dependencies = [
     "anthropic>=0.40.0",
+    "ollama>=0.6.2",
     "python-dotenv>=1.0.0",
 ]
 

@@ -4,7 +4,9 @@
 
 Same calculator, same task, same iteration cap as [`examples/01-basic-agent/`](../01-basic-agent/) and [`examples/01-basic-agent-langgraph/`](../01-basic-agent-langgraph/). This one exists to answer a question that comes up constantly: **isn't LangChain enough on its own — why do I need LangGraph too?**
 
-The honest answer is in this file's loop: **you still have to write it by hand.** LangChain gives you a nicer model wrapper (`ChatAnthropic`) and automatic tool-schema generation (`@tool`), but it has no primitive for "call the model, then if it asked for a tool, run it and call the model again." That's a *cycle* — LangChain's abstractions (chains, `prompt | llm | parser`) are for linear or lightly-branching pipelines, not loops. Open `agent.py` and you'll find a `for step in range(MAX_ITERATIONS):` loop that is structurally identical to example 01's — same shape, just LangChain's classes instead of the raw Anthropic SDK's.
+The honest answer is in this file's loop: **you still have to write it by hand.** LangChain gives you a nicer model wrapper (`ChatOllama`/`ChatAnthropic`) and automatic tool-schema generation (`@tool`), but it has no primitive for "call the model, then if it asked for a tool, run it and call the model again." That's a *cycle* — LangChain's abstractions (chains, `prompt | llm | parser`) are for linear or lightly-branching pipelines, not loops. Open `agent.py` and you'll find a `for step in range(MAX_ITERATIONS):` loop that is structurally identical to example 01's — same shape, just LangChain's classes instead of the raw SDK's.
+
+**Runs against a free local Ollama model by default** (`USE_LOCAL_MODEL=true`) — same switch as every other example, set `USE_LOCAL_MODEL=false` for Claude instead.
 
 ## The three-way comparison
 

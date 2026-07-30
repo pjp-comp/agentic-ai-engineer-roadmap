@@ -4,6 +4,8 @@
 
 Same task as [`01_web_agent_langgraph`](../01_web_agent_langgraph/) — give it a company name, get a dated, grouped news summary — but the search now goes through [Tavily](https://tavily.com/), a search API built specifically for LLM agents, instead of Claude's built-in `web_search`.
 
+**Runs against a free local Ollama model by default** (`USE_LOCAL_MODEL=true`) — because Tavily is a client-side tool (unlike `01_web_agent_langgraph`'s server-side-only `web_search`), any tool-calling model can drive it, local or Claude. You'll still need a real `TAVILY_API_KEY` in `.env` either way — only the reasoning model is free/local here, the search API itself isn't.
+
 ```bash
 uv run agent.py "polycab india limited" --days 7
 ```

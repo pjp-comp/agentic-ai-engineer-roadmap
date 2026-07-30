@@ -54,7 +54,7 @@ from langchain_ollama import OllamaEmbeddings
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-USE_LOCAL_MODEL = os.getenv("USE_LOCAL_MODEL", "false").strip().lower() == "true"
+USE_LOCAL_MODEL = os.getenv("USE_LOCAL_MODEL", "true").strip().lower() == "true"
 LOCAL_MODEL = os.getenv("LOCAL_MODEL", "llama3.2:3b")
 CLAUDE_MODEL = "claude-haiku-4-5"
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")

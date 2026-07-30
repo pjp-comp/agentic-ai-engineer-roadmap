@@ -20,26 +20,34 @@ Read examples/01-basic-agent/agent.py first. Every concept here has a
 one-to-one line you already read there; this file just names the pattern
 LangGraph gives you instead of writing it by hand.
 
+Runs against a free local Ollama model by default (USE_LOCAL_MODEL=true
+in .env.example) via LangChain's ChatOllama. Set USE_LOCAL_MODEL=false to
+use the Claude API instead — the graph never branches on which one it got,
+same lesson as example 02-basic-agent-local-langgraph.
+
 Usage:
-    Put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo root
-    (see .env.example), or export it in your shell — either works.
+    Local (default): ollama pull llama3.2:3b, then just run it.
+    Claude: put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo
+    root (see .env.example) and set USE_LOCAL_MODEL=false.
     uv run agent.py "What is 23 * 47, plus 100?"
 """
 
 import ast
 import operator
+import os
 import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from langchain_anthropic import ChatAnthropic
 from langchain_core.tools import tool
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-MODEL = "claude-haiku-4-5"
+USE_LOCAL_MODEL = os.getenv("USE_LOCAL_MODEL", "true").strip().lower() == "true"
+LOCAL_MODEL = os.getenv("LOCAL_MODEL", "llama3.2:3b")
+CLAUDE_MODEL = "claude-haiku-4-5"
 MAX_ITERATIONS = 8
 SYSTEM_PROMPT = (
     "You are a precise assistant. For any arithmetic, always use "
@@ -132,11 +140,23 @@ TOOLS = [calculate]
 #   START -> agent -> (tool call requested?) -> tools -> agent -> ... -> END
 #                   -> (no) --------------------------------------------> END
 
-llm = ChatAnthropic(model=MODEL, max_tokens=1024).bind_tools(TOOLS)
+def _build_llm():
+    if USE_LOCAL_MODEL:
+        from langchain_ollama import ChatOllama
+
+        print(f"  [model] local via Ollama: {LOCAL_MODEL}", file=sys.stderr)
+        return ChatOllama(model=LOCAL_MODEL, temperature=0).bind_tools(TOOLS)
+    from langchain_anthropic import ChatAnthropic
+
+    print(f"  [model] Claude API: {CLAUDE_MODEL}", file=sys.stderr)
+    return ChatAnthropic(model=CLAUDE_MODEL, max_tokens=1024).bind_tools(TOOLS)
+
+
+llm = _build_llm()
 
 
 def call_model(state: MessagesState) -> dict:
-    """The 'agent' node — one call to Claude, same as one iteration of
+    """The 'agent' node — one call to the model, same as one iteration of
     example 01's for-loop body before the tool-dispatch branch."""
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + state["messages"]
     response = llm.invoke(messages)

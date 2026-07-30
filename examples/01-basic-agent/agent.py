@@ -6,23 +6,31 @@ run the tool and feed the result back, repeat until it answers in
 plain text. This is what LangGraph/CrewAI automate for you — seeing
 it unframeworked once makes the framework's job legible.
 
+Runs against a free local Ollama model by default (USE_LOCAL_MODEL=true
+in .env.example) via the raw `ollama` Python client — same "no framework"
+spirit as the Claude path below, just a different SDK. Set
+USE_LOCAL_MODEL=false to use the Claude API instead.
+
 Usage:
-    Put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo root
-    (see .env.example), or export it in your shell — either works.
+    Local (default): ollama pull llama3.2:3b, then just run it.
+    Claude: put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo
+    root (see .env.example) and set USE_LOCAL_MODEL=false.
     python agent.py "What is 23 * 47, plus 100?"
 """
 
+import os
 import sys
 import ast
 import operator
 from pathlib import Path
 
-import anthropic
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-MODEL = "claude-haiku-4-5"
+USE_LOCAL_MODEL = os.getenv("USE_LOCAL_MODEL", "true").strip().lower() == "true"
+LOCAL_MODEL = os.getenv("LOCAL_MODEL", "llama3.2:3b")
+CLAUDE_MODEL = "claude-haiku-4-5"
 MAX_ITERATIONS = 8
 
 # --- Tool implementation -----------------------------------------------
@@ -77,20 +85,25 @@ TOOLS = [
 ]
 
 
-# --- The agent loop ------------------------------------------------------
+SYSTEM_PROMPT = (
+    "You are a precise assistant. For any arithmetic, always use "
+    "the calculate tool rather than computing it yourself."
+)
 
-def run_agent(user_task: str) -> str:
+
+# --- The agent loop, Claude path ------------------------------------------
+
+def _run_agent_claude(user_task: str) -> str:
+    import anthropic
+
     client = anthropic.Anthropic()
     messages = [{"role": "user", "content": user_task}]
 
     for step in range(MAX_ITERATIONS):
         response = client.messages.create(
-            model=MODEL,
+            model=CLAUDE_MODEL,
             max_tokens=1024,
-            system=(
-                "You are a precise assistant. For any arithmetic, always use "
-                "the calculate tool rather than computing it yourself."
-            ),
+            system=SYSTEM_PROMPT,
             tools=TOOLS,
             messages=messages,
         )
@@ -123,6 +136,72 @@ def run_agent(user_task: str) -> str:
         messages.append({"role": "user", "content": tool_results})
 
     return "(gave up: exceeded MAX_ITERATIONS without a final answer)"
+
+
+# --- The agent loop, local (Ollama) path ----------------------------------
+# Structurally identical to the Claude path above — same loop, same tool,
+# same "check the model's response, run a tool or return text" shape. The
+# only difference is the SDK: `ollama.chat()` instead of
+# `client.messages.create()`, and its tool-call shape
+# (`resp.message.tool_calls`, each a `ToolCall(function=Function(name=...,
+# arguments=...))`) instead of Anthropic's `tool_use` content blocks.
+
+_OLLAMA_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": TOOLS[0]["name"],
+            "description": TOOLS[0]["description"],
+            "parameters": TOOLS[0]["input_schema"],
+        },
+    }
+]
+
+
+def _run_agent_local(user_task: str) -> str:
+    import ollama
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_task},
+    ]
+
+    for step in range(MAX_ITERATIONS):
+        response = ollama.chat(model=LOCAL_MODEL, messages=messages, tools=_OLLAMA_TOOLS)
+        msg = response.message
+
+        if not msg.tool_calls:
+            # Model is done — same check as the Claude path's
+            # `stop_reason != "tool_use"`, expressed against Ollama's
+            # tool_calls list instead of a stop_reason field.
+            return msg.content or "(no text response)"
+
+        # Ollama expects the assistant turn (including tool_calls) appended
+        # before the tool results, same ordering requirement as Claude.
+        messages.append({"role": "assistant", "content": msg.content, "tool_calls": msg.tool_calls})
+
+        for call in msg.tool_calls:
+            name = call.function.name
+            args = call.function.arguments
+            print(f"  [tool call] {name}({args})", file=sys.stderr)
+            if name == "calculate":
+                result = calculate(args["expression"])
+            else:
+                result = f"Error: unknown tool '{name}'"
+            # Ollama's chat API takes tool results back as role="tool"
+            # messages, one per call — its equivalent of Claude's batched
+            # tool_result content blocks, just modeled as separate messages.
+            messages.append({"role": "tool", "content": result})
+
+    return "(gave up: exceeded MAX_ITERATIONS without a final answer)"
+
+
+def run_agent(user_task: str) -> str:
+    if USE_LOCAL_MODEL:
+        print(f"  [model] local via Ollama: {LOCAL_MODEL}", file=sys.stderr)
+        return _run_agent_local(user_task)
+    print(f"  [model] Claude API: {CLAUDE_MODEL}", file=sys.stderr)
+    return _run_agent_claude(user_task)
 
 
 if __name__ == "__main__":

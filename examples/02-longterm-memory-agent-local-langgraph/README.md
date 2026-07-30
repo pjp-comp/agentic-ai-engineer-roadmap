@@ -31,7 +31,7 @@ This example only does one small piece of "forgetting" (overwrite a fact when it
 
 ## Run it
 
-Same Ollama/Claude setup as the other `02-*` examples — install Ollama, `ollama pull llama3.2:3b`, set `USE_LOCAL_MODEL=true` in your repo-root `.env` (or leave it `false`/unset for the Claude API).
+Same Ollama/Claude setup as the other `02-*` examples — install Ollama, `ollama pull llama3.2:3b`. `USE_LOCAL_MODEL=true` is the default; set it to `false` in your `.env` if you want the Claude API instead.
 
 ```bash
 cd examples/02-longterm-memory-agent-local-langgraph

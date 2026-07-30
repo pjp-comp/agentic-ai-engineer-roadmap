@@ -2,7 +2,9 @@
 
 # Example 01 — A Basic AI Agent
 
-This is the smallest thing that's honestly an *agent* and not just an API call: the model can decide, on its own, to call a tool, see the result, and decide again — until it's ready to answer. No LangGraph, no CrewAI — just the Claude API and a `while` loop, so the loop itself isn't a black box before you start using frameworks that hide it.
+This is the smallest thing that's honestly an *agent* and not just an API call: the model can decide, on its own, to call a tool, see the result, and decide again — until it's ready to answer. No LangGraph, no CrewAI — just a raw SDK call and a `while` loop, so the loop itself isn't a black box before you start using frameworks that hide it.
+
+**Runs against a free local Ollama model by default** (`USE_LOCAL_MODEL=true`, both in `.env.example` and as `agent.py`'s own fallback) — no API key needed to try it. Set `USE_LOCAL_MODEL=false` for the Claude API instead; both paths use the exact same loop and tool.
 
 ## What it is
 
@@ -16,21 +18,25 @@ This is an **AI agent**, not agentic AI — see the [distinction in the main REA
 
 Managed with [`uv`](https://docs.astral.sh/uv/) — `uv run` creates an isolated virtualenv, installs the locked dependencies, and runs the script in one step, so there's no separate "activate your venv" ritual.
 
-Set the API key once, at the repo root, and every example picks it up automatically:
+Copy `.env.example` to `.env` once, at the repo root — every example picks it up automatically:
 
 ```bash
 cp ../../.env.example ../../.env   # from this directory, or just edit the repo-root .env.example
-# then put your real key in ../../.env
 ```
 
+**Local (default, free):**
+
 ```bash
+ollama pull llama3.2:3b   # one-time, ~2GB
 cd examples/01-basic-agent
 uv run agent.py "What is 23 * 47, plus 100, all divided by 3?"
 ```
 
+**Claude API instead:** set `USE_LOCAL_MODEL=false` and `ANTHROPIC_API_KEY=sk-ant-...` in `.env`, then run the same command.
+
 The first run downloads dependencies into a local `.venv/` (git-ignored) per the pinned versions in `uv.lock`; every run after that is instant. No `pip install` step, no manual venv activation.
 
-`agent.py` loads `../../.env` via `python-dotenv` at startup — no `export` needed in your shell. If you'd rather not use a `.env` file, `export ANTHROPIC_API_KEY=sk-ant-...` still works exactly as before; the export takes precedence if both are set.
+`agent.py` loads `../../.env` via `python-dotenv` at startup — no `export` needed in your shell. Exporting the same variables in your shell still works and takes precedence if both are set.
 
 <details>
 <summary>Without <code>uv</code> (plain <code>pip</code>)</summary>
@@ -38,9 +44,8 @@ The first run downloads dependencies into a local `.venv/` (git-ignored) per the
 ```bash
 cd examples/01-basic-agent
 python -m venv .venv && source .venv/bin/activate
-pip install anthropic python-dotenv
-export ANTHROPIC_API_KEY=sk-ant-...
-python agent.py "What is 23 * 47, plus 100, all divided by 3?"
+pip install anthropic ollama python-dotenv
+python agent.py "What is 23 * 47, plus 100, all divided by 3?"   # local by default
 ```
 </details>
 

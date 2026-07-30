@@ -15,27 +15,35 @@ agent-only node from 01_web_agent_langgraph.
 Same task, same system prompt, same "only report what you found" rule —
 different tool, different graph shape.
 
+Tavily being client-side means this works with a local model too — unlike
+01_web_agent_langgraph's server-side web_search, which only Claude can run.
+Runs against a free local Ollama model by default (USE_LOCAL_MODEL=true in
+.env.example); set USE_LOCAL_MODEL=false for Claude instead.
+
 Usage:
-    Put ANTHROPIC_API_KEY=sk-ant-... and TAVILY_API_KEY=tvly-... in a .env
-    file at the repo root (see .env.example), or export them in your shell.
+    Put TAVILY_API_KEY=tvly-... in a .env file at the repo root (see
+    .env.example) either way — Tavily itself is never free/local, only
+    the reasoning model is. Add ANTHROPIC_API_KEY too if using Claude.
     uv run agent.py "Polycab India Limited"
     uv run agent.py "Polycab India Limited" --days 7
 """
 
 import argparse
+import os
 import sys
 from datetime import date, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
-from langchain_anthropic import ChatAnthropic
 from langchain_tavily import TavilySearch
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-MODEL = "claude-haiku-4-5"
+USE_LOCAL_MODEL = os.getenv("USE_LOCAL_MODEL", "true").strip().lower() == "true"
+LOCAL_MODEL = os.getenv("LOCAL_MODEL", "llama3.2:3b")
+CLAUDE_MODEL = "claude-haiku-4-5"
 MAX_ITERATIONS = 8
 
 SYSTEM_PROMPT = """\
@@ -62,7 +70,20 @@ Rules:
 search_tool = TavilySearch(max_results=5, topic="news")
 TOOLS = [search_tool]
 
-llm = ChatAnthropic(model=MODEL, max_tokens=4096).bind_tools(TOOLS)
+
+def _build_llm():
+    if USE_LOCAL_MODEL:
+        from langchain_ollama import ChatOllama
+
+        print(f"  [model] local via Ollama: {LOCAL_MODEL}", file=sys.stderr)
+        return ChatOllama(model=LOCAL_MODEL, temperature=0).bind_tools(TOOLS)
+    from langchain_anthropic import ChatAnthropic
+
+    print(f"  [model] Claude API: {CLAUDE_MODEL}", file=sys.stderr)
+    return ChatAnthropic(model=CLAUDE_MODEL, max_tokens=4096).bind_tools(TOOLS)
+
+
+llm = _build_llm()
 
 
 def call_model(state: MessagesState) -> dict:

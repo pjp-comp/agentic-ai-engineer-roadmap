@@ -7,23 +7,31 @@ Tools: calculate, word_count, convert_units, get_weather (a fake
 lookup, deliberately included to show the model calling a tool that
 can return an error and recovering instead of crashing).
 
+Runs against a free local Ollama model by default (USE_LOCAL_MODEL=true
+in .env.example) via the raw `ollama` Python client — see
+examples/01-basic-agent/agent.py for the same local/Claude split on a
+single tool; this file is that same split applied to four.
+
 Usage:
-    Put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo root
-    (see .env.example), or export it in your shell — either works.
+    Local (default): ollama pull llama3.2:3b, then just run it.
+    Claude: put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo
+    root (see .env.example) and set USE_LOCAL_MODEL=false.
     python agent.py "How many words are in 'the quick brown fox'? Also, what's 12 * 7?"
 """
 
+import os
 import sys
 import ast
 import operator
 from pathlib import Path
 
-import anthropic
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-MODEL = "claude-haiku-4-5"
+USE_LOCAL_MODEL = os.getenv("USE_LOCAL_MODEL", "true").strip().lower() == "true"
+LOCAL_MODEL = os.getenv("LOCAL_MODEL", "llama3.2:3b")
+CLAUDE_MODEL = "claude-haiku-4-5"
 MAX_ITERATIONS = 8
 
 # --- Tool implementations -------------------------------------------------
@@ -72,6 +80,14 @@ _LENGTH_TO_METERS = {
 
 def convert_units(value: float, from_unit: str, to_unit: str) -> str:
     """Convert a length between m, km, mi, ft."""
+    # Coerce value to float — some models (notably smaller local ones) don't
+    # always respect the JSON schema's "type": "number" and send a string
+    # (e.g. '5') instead. Claude follows the schema strictly; not every
+    # tool-calling model does, so parse defensively rather than trust it.
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return f"Error: '{value}' is not a valid number"
     from_unit, to_unit = from_unit.lower(), to_unit.lower()
     if from_unit not in _LENGTH_TO_METERS or to_unit not in _LENGTH_TO_METERS:
         supported = ", ".join(_LENGTH_TO_METERS)
@@ -154,22 +170,26 @@ _DISPATCH = {
     "get_weather": lambda i: get_weather(i["city"]),
 }
 
+SYSTEM_PROMPT = (
+    "You are a precise assistant with several tools available. "
+    "Pick whichever tool actually fits the task — don't call a tool "
+    "you don't need, and don't compute by hand what a tool can do exactly."
+)
 
-# --- The agent loop --------------------------------------------------------
 
-def run_agent(user_task: str) -> str:
+# --- The agent loop, Claude path --------------------------------------------
+
+def _run_agent_claude(user_task: str) -> str:
+    import anthropic
+
     client = anthropic.Anthropic()
     messages = [{"role": "user", "content": user_task}]
 
     for step in range(MAX_ITERATIONS):
         response = client.messages.create(
-            model=MODEL,
+            model=CLAUDE_MODEL,
             max_tokens=1024,
-            system=(
-                "You are a precise assistant with several tools available. "
-                "Pick whichever tool actually fits the task — don't call a tool "
-                "you don't need, and don't compute by hand what a tool can do exactly."
-            ),
+            system=SYSTEM_PROMPT,
             tools=TOOLS,
             messages=messages,
         )
@@ -200,6 +220,60 @@ def run_agent(user_task: str) -> str:
         messages.append({"role": "user", "content": tool_results})
 
     return "(gave up: exceeded MAX_ITERATIONS without a final answer)"
+
+
+# --- The agent loop, local (Ollama) path ------------------------------------
+# Same loop shape as the Claude path — the only real difference is the SDK's
+# tool-call shape (see examples/01-basic-agent/agent.py for the single-tool
+# version of this same split, with more detailed comments).
+
+_OLLAMA_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": t["name"],
+            "description": t["description"],
+            "parameters": t["input_schema"],
+        },
+    }
+    for t in TOOLS
+]
+
+
+def _run_agent_local(user_task: str) -> str:
+    import ollama
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_task},
+    ]
+
+    for step in range(MAX_ITERATIONS):
+        response = ollama.chat(model=LOCAL_MODEL, messages=messages, tools=_OLLAMA_TOOLS)
+        msg = response.message
+
+        if not msg.tool_calls:
+            return msg.content or "(no text response)"
+
+        messages.append({"role": "assistant", "content": msg.content, "tool_calls": msg.tool_calls})
+
+        for call in msg.tool_calls:
+            name = call.function.name
+            args = call.function.arguments
+            print(f"  [tool call] {name}({args})", file=sys.stderr)
+            handler = _DISPATCH.get(name)
+            result = handler(args) if handler else f"Error: unknown tool '{name}'"
+            messages.append({"role": "tool", "content": result})
+
+    return "(gave up: exceeded MAX_ITERATIONS without a final answer)"
+
+
+def run_agent(user_task: str) -> str:
+    if USE_LOCAL_MODEL:
+        print(f"  [model] local via Ollama: {LOCAL_MODEL}", file=sys.stderr)
+        return _run_agent_local(user_task)
+    print(f"  [model] Claude API: {CLAUDE_MODEL}", file=sys.stderr)
+    return _run_agent_claude(user_task)
 
 
 if __name__ == "__main__":

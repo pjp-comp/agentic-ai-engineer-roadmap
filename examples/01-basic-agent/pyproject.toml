@@ -1,10 +1,11 @@
 [project]
 name = "basic-agent"
 version = "0.1.0"
-description = "A framework-free AI agent: one tool, one ReAct loop, raw Claude API calls."
+description = "A framework-free AI agent: one tool, one ReAct loop, raw API calls (local Ollama by default, or Claude)."
 requires-python = ">=3.10"
 dependencies = [
     "anthropic>=0.40.0",
+    "ollama>=0.6.2",
     "python-dotenv>=1.0.0",
 ]
 

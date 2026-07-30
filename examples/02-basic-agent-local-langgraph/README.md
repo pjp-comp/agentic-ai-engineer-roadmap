@@ -6,7 +6,7 @@ Identical graph to [`examples/01-basic-agent-langgraph/`](../01-basic-agent-lang
 
 ## The point of this example
 
-Every example before this one calls the Claude API. That's a reasonable default (Claude is what this repo's runnable examples are built and tested against), but **the ReAct loop, the graph, and the tool-calling contract are not Claude-specific** — they're a property of the LangChain/LangGraph chat-model interface, which any tool-calling model can implement. This example proves that by swapping the model with a single `if` branch and changing nothing else:
+Every `01-*` example calls the Claude API. But **the ReAct loop, the graph, and the tool-calling contract are not Claude-specific** — they're a property of the LangChain/LangGraph chat-model interface, which any tool-calling model can implement. This example proves that by swapping the model with a single `if` branch and changing nothing else. Starting with this example, every `02-*` example in this repo **defaults to the local model** (`USE_LOCAL_MODEL=true` by default, both in `agent.py`'s own fallback and in `.env.example`) — free, no API key, no billing risk while you're learning. Claude stays fully wired up as an explicit opt-in, not removed:
 
 ```python
 if USE_LOCAL_MODEL:
@@ -23,14 +23,14 @@ Everything below that — `call_model`, the `StateGraph`, `ToolNode`, `tools_con
 
 You are **not** downloading raw model weight files into this git repo. Ollama manages the model in its own local store (`~/.ollama/models` on macOS/Linux), the same way `uv`/`pip` manage packages in a venv rather than in your project folder. `USE_LOCAL_MODEL` and `LOCAL_MODEL` in your `.env` just tell this script which model *name* to ask Ollama for at runtime — the actual ~2GB of weights lives outside git, downloaded once by `ollama pull`, never committed.
 
-## Setup — local model path (free, no key)
+## Setup — local model path (the default)
 
 1. **Install Ollama**: [ollama.com/download](https://ollama.com/download) (macOS/Windows/Linux). This installs a background service that serves models over a local API at `http://127.0.0.1:11434`.
 2. **Pull the model** (one-time, ~2GB download):
    ```bash
    ollama pull llama3.2:3b
    ```
-3. **Set the flag** in your repo-root `.env` (copy from `.env.example` if you haven't already):
+3. **Copy `.env.example` to `.env`** at the repo root if you haven't already — `USE_LOCAL_MODEL=true` is already the default there, nothing to change:
    ```bash
    USE_LOCAL_MODEL=true
    LOCAL_MODEL=llama3.2:3b
@@ -51,12 +51,10 @@ The result of 23 * 47 + 100 is 1181.
 
 The first response is slower than Claude (CPU inference on a laptop, not a data center), but every run after that is still free and still works with no internet connection once the model is pulled.
 
-## Setup — Claude API path (default if `USE_LOCAL_MODEL` is unset or `false`)
-
-Same as every other example in this repo:
+## Setup — Claude API path (opt-in, set `USE_LOCAL_MODEL=false`)
 
 ```bash
-# repo-root .env: ANTHROPIC_API_KEY=sk-ant-..., USE_LOCAL_MODEL=false (or omit it)
+# repo-root .env: ANTHROPIC_API_KEY=sk-ant-..., USE_LOCAL_MODEL=false
 cd examples/02-basic-agent-local-langgraph
 uv run agent.py "What is 23 * 47, plus 100?"
 ```
@@ -70,7 +68,7 @@ It's small enough (≈2GB quantized) to run on a laptop CPU at usable speed, and
 - **`llm = ChatOllama(...)` vs. `llm = ChatAnthropic(...)`** — both return an object satisfying the same LangChain chat-model interface (`.bind_tools()`, `.invoke()`, an `AIMessage` with `.tool_calls`). The graph never branches on which one it got.
 - **`temperature=0` on the local model** — small open-weight models are more prone to inconsistent tool-call formatting at higher temperatures than a frontier model is; pinning to 0 makes this example reliable to run repeatedly. Feel free to raise it once you're comfortable with the failure modes.
 - **No API key required for the local path** — this is genuinely useful for the earliest, highest-repetition part of learning: you can run this agent as many times as you want, with zero billing risk, while you're still getting comfortable with the ReAct loop itself.
-- **Speed/quality tradeoff is real** — this is not "Claude for free." A 3B local model will misunderstand more, hallucinate more, and reason less reliably than Claude on genuinely hard tasks. Use it to learn the mechanics cheaply; switch back to the Claude path in `USE_LOCAL_MODEL=false` for anything where output quality actually matters.
+- **Speed/quality tradeoff is real** — this is not "Claude for free." A 3B local model will misunderstand more, hallucinate more, and reason less reliably than Claude on genuinely hard tasks. Use the local default to learn the mechanics cheaply; set `USE_LOCAL_MODEL=false` for anything where output quality actually matters — that code path is still there, just not the default anymore.
 
 ## Where this goes next
 

@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:www.langchain.com)"
+      "WebFetch(domain:www.langchain.com)",
+      "Bash(curl -s \"https://registry.ollama.ai/v2/library/kimi-k2/tags/list\")",
+      "Bash(curl -s \"https://ollama.com/api/tags?name=kimi-k2\")",
+      "Bash(uv run *)"
     ]
   }
 }

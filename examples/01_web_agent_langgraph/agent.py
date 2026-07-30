@@ -10,6 +10,14 @@ is no local Python function to execute, so there's no ToolNode / tool-dispatch
 step in this graph at all — just one node that calls the model, which is
 allowed to call web_search itself, as many times as it needs, before answering.
 
+Claude-only, deliberately, unlike most other examples in this repo:
+server-side web_search is a hosted capability of Anthropic's infrastructure,
+not something Ollama or any local model can run — there is no local
+equivalent to fall back to, so USE_LOCAL_MODEL doesn't apply here. If you
+want the same task (company news research) against a local model, see
+01_web_agent_langgraph_tavily — Tavily is a client-side tool, so any
+tool-calling model (local or Claude) can drive it.
+
 Usage:
     Put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo root
     (see .env.example), or export it in your shell — either works.

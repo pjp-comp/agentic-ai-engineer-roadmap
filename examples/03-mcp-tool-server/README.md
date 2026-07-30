@@ -6,6 +6,8 @@ This is [`examples/01-basic-agent/`](../01-basic-agent/) again — same calculat
 
 Read this after 01, not instead of it. The point isn't a new capability — it's seeing exactly what MCP adds (and costs) over a plain tool array, using code you've already read.
 
+**Runs against a free local Ollama model by default** (`USE_LOCAL_MODEL=true`) — same switch as every other example. MCP's `list_tools()` discovery step is identical either way; only the schema translation for the model's own tool-calling API differs (`_mcp_tool_to_claude_schema` vs. `_mcp_tool_to_ollama_schema` in `agent.py`).
+
 ## What changed vs. example 01
 
 | | `01-basic-agent/agent.py` | `03-mcp-tool-server/` |

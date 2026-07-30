@@ -1,10 +1,11 @@
 [project]
 name = "mcp-tool-server"
 version = "0.1.0"
-description = "The same calculator agent as example 01, with the tool served over MCP instead of hard-coded."
+description = "The same calculator agent as example 01, with the tool served over MCP instead of hard-coded. Local Ollama by default, or Claude."
 requires-python = ">=3.10"
 dependencies = [
     "anthropic>=0.40.0",
+    "ollama>=0.6.2",
     "mcp>=1.2.0",
     "python-dotenv>=1.0.0",
 ]

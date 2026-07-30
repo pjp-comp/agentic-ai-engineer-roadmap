@@ -6,6 +6,8 @@ This is [`examples/01-basic-agent/`](../01-basic-agent/) again — same tool, sa
 
 Read `01-basic-agent/` first. This example exists to answer one question directly: **what does a framework actually replace?** Every line of the raw loop maps to something LangGraph does for you here — read them side by side and the framework stops being a black box.
 
+**Runs against a free local Ollama model by default** (`USE_LOCAL_MODEL=true`) — same switch as every other example, set `USE_LOCAL_MODEL=false` for Claude instead.
+
 ## What changed vs. example 01
 
 | Example 01 (raw API) | This example (LangGraph) | What it replaces |

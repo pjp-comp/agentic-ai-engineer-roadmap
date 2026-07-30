@@ -21,25 +21,33 @@ is components (model wrappers, tool schemas, prompt templates); LangGraph is
 the graph/cycle engine that removes the hand-written loop. Neither one
 "replaces" tool-calling logic on its own — LangGraph does, LangChain doesn't.
 
+Runs against a free local Ollama model by default (USE_LOCAL_MODEL=true
+in .env.example) via LangChain's ChatOllama. Set USE_LOCAL_MODEL=false to
+use the Claude API instead — both are the same LangChain chat-model
+interface, so nothing else in this file branches on which one is active.
+
 Usage:
-    Put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo root
-    (see .env.example), or export it in your shell — either works.
+    Local (default): ollama pull llama3.2:3b, then just run it.
+    Claude: put ANTHROPIC_API_KEY=sk-ant-... in a .env file at the repo
+    root (see .env.example) and set USE_LOCAL_MODEL=false.
     uv run agent.py "What is 23 * 47, plus 100?"
 """
 
 import ast
 import operator
+import os
 import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-MODEL = "claude-haiku-4-5"
+USE_LOCAL_MODEL = os.getenv("USE_LOCAL_MODEL", "true").strip().lower() == "true"
+LOCAL_MODEL = os.getenv("LOCAL_MODEL", "llama3.2:3b")
+CLAUDE_MODEL = "claude-haiku-4-5"
 MAX_ITERATIONS = 8
 SYSTEM_PROMPT = (
     "You are a precise assistant. For any arithmetic, always use "
@@ -84,10 +92,25 @@ def calculate(expression: str) -> str:
 TOOLS = [calculate]
 TOOLS_BY_NAME = {t.name: t for t in TOOLS}
 
-# LangChain gives you this much for free: bind_tools() attaches the
-# @tool-derived schema to the model, same as example 01's `tools=TOOLS`
-# kwarg but without hand-writing the JSON Schema.
-llm = ChatAnthropic(model=MODEL, max_tokens=1024).bind_tools(TOOLS)
+
+def _build_llm():
+    # LangChain gives you this much for free: bind_tools() attaches the
+    # @tool-derived schema to the model, same as example 01's `tools=TOOLS`
+    # kwarg but without hand-writing the JSON Schema — and both ChatOllama
+    # and ChatAnthropic satisfy the same interface, so nothing downstream
+    # needs to know which one it got.
+    if USE_LOCAL_MODEL:
+        from langchain_ollama import ChatOllama
+
+        print(f"  [model] local via Ollama: {LOCAL_MODEL}", file=sys.stderr)
+        return ChatOllama(model=LOCAL_MODEL, temperature=0).bind_tools(TOOLS)
+    from langchain_anthropic import ChatAnthropic
+
+    print(f"  [model] Claude API: {CLAUDE_MODEL}", file=sys.stderr)
+    return ChatAnthropic(model=CLAUDE_MODEL, max_tokens=1024).bind_tools(TOOLS)
+
+
+llm = _build_llm()
 
 
 # --- The agent loop — hand-written, same shape as example 01 --------------

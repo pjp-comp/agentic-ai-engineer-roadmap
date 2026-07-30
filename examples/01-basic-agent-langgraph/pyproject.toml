@@ -1,11 +1,12 @@
 [project]
 name = "basic-agent-langgraph"
 version = "0.1.0"
-description = "The same calculator agent as example 01, rebuilt on LangGraph's StateGraph instead of a hand-written loop."
+description = "The same calculator agent as example 01, rebuilt on LangGraph's StateGraph instead of a hand-written loop. Local Ollama by default, or Claude."
 requires-python = ">=3.10"
 dependencies = [
     "langgraph>=0.2.0",
     "langchain-anthropic>=0.3.0",
+    "langchain-ollama>=0.2.0",
     "python-dotenv>=1.0.0",
 ]
 
