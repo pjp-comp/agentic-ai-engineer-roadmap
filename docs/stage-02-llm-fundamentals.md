@@ -8,6 +8,35 @@ Context engineering · model routing · token economics · cost optimization · 
 
 Agent cost and latency are dominated by model choice and context size, not your orchestration code. Knowing when a small/fast model beats a frontier one — and how prompt caching changes the economics — is what separates a demo from something affordable to run at volume.
 
+## How LLMs actually work — the mechanics everything else in this roadmap assumes
+
+Every stage after this one talks about "tokens," "context windows," and "temperature" as if you already know what they are. This section is that missing prerequisite, covered once here so it doesn't need repeating.
+
+**An LLM is a probabilistic next-token machine.** At each step, the model doesn't "decide" an answer — it computes a probability distribution over every possible next token given everything so far, then a sampling step picks one. That token gets appended to the input, and the whole process repeats. There's no separate "planning" phase happening before generation starts; even a model that appears to reason step-by-step is still predicting one token at a time, and what looks like reasoning is that same mechanism applied to text that happens to describe intermediate steps. This is *why* prompting works at all: you're not configuring a program, you're shaping the probability distribution the next prediction is drawn from.
+
+**What is a token?** Not a word, and not a character — a token is a chunk of text the model's tokenizer maps to one integer ID, typically averaging around 3–4 characters of English text. "agentic" might be one token or split into pieces like "agent" + "ic" depending on the tokenizer's vocabulary; punctuation, whitespace, and non-English text often tokenize less efficiently than plain English words. This is the literal unit everything is billed and budgeted in — `tokens_in`/`tokens_out` in the brief below aren't an abstraction, they're a direct count of these chunks, and `MAX_ITERATIONS`/context-window limits throughout this roadmap are bounding a token count, not a word count or a turn count.
+
+**Temperature, top-p, and other sampling parameters control how that next-token distribution gets sampled**, not what the model "knows":
+
+| Parameter | What it does | Typical use |
+|---|---|---|
+| **Temperature** | Scales the probability distribution before sampling. Near 0: almost always picks the single highest-probability token (deterministic, repetitive). Higher (e.g. 0.7–1.0): flattens the distribution, so lower-probability tokens get picked more often (more varied, more prone to drift) | Low for tool-calling/structured extraction/classification (you want consistency); higher for brainstorming, creative writing, varied phrasing |
+| **Top-p (nucleus sampling)** | Instead of considering every possible token, only samples from the smallest set of tokens whose cumulative probability exceeds p (e.g. 0.9). Often used instead of, or alongside, temperature | Narrowing the candidate pool without going fully deterministic |
+| **Top-k** | Only considers the k most likely next tokens, discarding the rest before sampling | A blunter version of top-p; less commonly tuned directly in modern agent code |
+
+You'll see `temperature=0.3` set directly in this repo's runnable examples (e.g. [`examples/02-memory-agent-local-langgraph/agent.py`](../examples/02-memory-agent-local-langgraph/agent.py)) — that's a low-but-not-zero setting chosen for a chat agent that should be consistent but not robotic. An agent calling tools with structured arguments generally wants temperature at or near 0: you're not looking for creative variation in a JSON schema.
+
+## Core prompting technique, before context engineering replaces it
+
+"Context engineering" (below) is the broader skill this stage is really teaching, but it's worth having the narrower prompting fundamentals first — context engineering is an extension of these ideas, not a replacement for needing them:
+
+- **Be explicit about format and constraints**, don't rely on the model inferring what you want from a vague ask — "list 3 options as bullet points, no more than one sentence each" outperforms "give me some options."
+- **Show, don't just tell (few-shot examples)** — one or two examples of the input/output shape you want, embedded in the prompt, does more to fix format drift than a paragraph of instructions describing the format in the abstract.
+- **Give the model a role/persona when it changes behavior, not by default** — "You are a precise assistant" (used in this repo's `SYSTEM_PROMPT` constants) narrows tone and priorities; it's not required for every prompt, but it's cheap and effective when you need consistent framing across many calls.
+- **Common pitfalls**: burying the actual instruction in the middle of a long prompt (models attend unevenly across long contexts — put the critical instruction near the start or end, not buried in the middle); assuming more instructions always help (conflicting or redundant instructions can *reduce* reliability, not improve it); and testing a prompt once and assuming it generalizes (temperature > 0 means the same prompt can produce different outputs across runs — a prompt that worked in one manual test can still fail intermittently).
+
+"Thinking like an LLM" in practice means remembering the model has no access to anything outside the current context window and its training — if a fact, a prior decision, or a constraint isn't literally present in the tokens you send it, it doesn't exist for that call, no matter how "obvious" it seems to you. That single idea is also the seed of the next section.
+
 ## Brief
 
 Build a router that classifies incoming requests by complexity (regex/heuristic first, cheap-model classifier second) and sends "simple" ones to a fast/cheap model, "complex" ones to a frontier model. Log tokens, latency, and $ per request for both paths.
@@ -31,6 +60,9 @@ def route(task_complexity: str) -> str:
 
 | Type | Resource |
 |------|----------|
+| Docs | [Claude Platform Docs — Token counting](https://platform.claude.com/docs/en/build-with-claude/token-counting) — what a token actually is, how to count them before sending a request |
+| Docs | [Hugging Face — Summary of the tokenizers](https://huggingface.co/docs/transformers/en/tokenizer_summary) — vendor-neutral explanation of how text becomes tokens (BPE and related schemes) |
+| Docs | [OpenAI — Text generation, incl. temperature/top-p](https://developers.openai.com/api/docs/guides/text) — sampling parameters explained from a second provider, worth comparing against Claude's `temperature`/`top_p` in the [Messages API reference](https://platform.claude.com/docs/en/api/messages) |
 | Docs | [Claude Platform Docs — Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) |
 | Docs | [OpenAI — Prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) — same concept, different provider; worth comparing cache-write/read pricing and prefix rules against Claude's |
 | Docs | [Claude Platform Docs — Model pricing & context windows](https://platform.claude.com/docs/en/about-claude/pricing) |
@@ -60,4 +92,5 @@ Model routing is the first lever, not the only one. Once a router is in place, t
 - **Batch-tier processing** — for anything that doesn't need a synchronous response (nightly scoring, bulk classification, eval runs), batch APIs typically cut cost roughly in half in exchange for async turnaround. Not usable for interactive agent turns, but often applicable to Stage 10's eval suite itself.
 - **Per-session token budgets** — cap total tokens a single agent run is allowed to consume, enforced at the call site (or a gateway in front of it), independent of the iteration cap from Stage 7. An agent that's technically not looping forever can still be quietly expensive per run without one.
 
-## Sources
+---
+[← Stage 01 — Python + Async Foundations](stage-01-python-async.md) · [Back to roadmap](../README.md) · **Next:** [Stage 03 — Tool Calling + Structured Outputs →](stage-03-tool-calling.md)

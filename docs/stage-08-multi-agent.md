@@ -2,7 +2,7 @@
 
 # Stage 08 — Multi-Agent Orchestration
 
-Framework landscape (LangGraph/CrewAI/ADK/OpenAI Agents SDK/Pydantic AI/Mastra) · supervisor patterns · message passing · conflict resolution · handoffs + inline guardrails · A2A cross-agent protocol
+Framework landscape (LangGraph/CrewAI/ADK/OpenAI Agents SDK/Pydantic AI/Mastra) · supervisor patterns · message passing · conflict resolution · handoffs + inline guardrails · A2A cross-agent protocol + AAIF governance · adjacent commerce protocols (AP2/x402/UCP)
 
 ## Why this matters
 
@@ -44,9 +44,23 @@ None of these change the underlying patterns from Stage 7 (routing, orchestrator
 
 ## A2A — agent-to-agent, across vendors and processes
 
-Stage 6's shared-session pattern is how two agents communicate *inside one process, one framework*. That doesn't extend to agents built by different teams on different frameworks that need to talk to each other — a supervisor written in LangGraph calling a specialist agent someone else built in CrewAI, for instance. **A2A (Agent2Agent)**, now a Linux Foundation project with broad industry backing, is the emerging standard for exactly that: each agent publishes an "Agent Card" describing its capabilities, and agents negotiate and exchange tasks over a defined protocol — independent of what either side is built with.
+Stage 6's shared-session pattern is how two agents communicate *inside one process, one framework*. That doesn't extend to agents built by different teams on different frameworks that need to talk to each other — a supervisor written in LangGraph calling a specialist agent someone else built in CrewAI, for instance. **A2A (Agent2Agent)**, introduced by Google in April 2025 and donated to the Linux Foundation two months later, is the emerging standard for exactly that: each agent publishes an "Agent Card" describing its capabilities, and agents negotiate and exchange tasks over a defined protocol — independent of what either side is built with. IBM's separately-developed Agent Communication Protocol (also, confusingly, abbreviated ACP) merged into A2A in August 2025 rather than competing with it, and A2A's 1.0 release added **signed Agent Cards** (JWS/RFC 7515) so an agent's published capabilities can be cryptographically verified, not just trusted at face value.
 
 This is a different layer from MCP: MCP is agent↔tool (Stage 3); A2A is agent↔agent, across process and vendor boundaries. For a single-framework project like the supervisor pattern in this stage's brief, you don't need it — shared session state is simpler and sufficient. Reach for A2A only when a project genuinely needs to interoperate with an agent it doesn't control the framework for.
+
+**Governance, as of December 2025:** MCP and A2A are no longer single-vendor projects. Anthropic donated MCP to a new **Agentic AI Foundation (AAIF)**, a directed fund under the Linux Foundation co-founded with Block and OpenAI, with Google, Microsoft, AWS, Cloudflare, and Bloomberg among the supporting members — the explicit goal being a neutral home so no single company controls the protocol's direction. A2A had already moved to Linux Foundation governance in June 2025. Practically: when picking a protocol to build on, "which company owns this" is less of a lock-in risk for MCP/A2A now than it would have been in early 2025 — worth knowing if you're choosing between a foundation-governed standard and a single-vendor one for anything you plan to depend on long-term.
+
+## Adjacent protocols: agent commerce (know these exist, don't build on them yet)
+
+MCP (tools) and A2A (agent-to-agent) aren't the whole emerging protocol landscape — a newer, less mature layer covers agents *transacting*, not just communicating. Three real, distinct efforts, worth knowing apart because their names collide:
+
+- **AP2 (Agent Payments Protocol)** — announced by Google in September 2025 with 60+ launch partners (including Coinbase); covers an agent completing a payment on a user's behalf with verifiable authorization.
+- **x402** — Coinbase's HTTP-402-based stablecoin payment scheme, now under Linux Foundation governance; lets an API respond "payment required" and an agent complete that payment as part of the request flow.
+- **UCP (Universal Commerce Protocol)** — Google's protocol for agent-driven shopping/commerce, backed by Shopify, Target, Walmart, Mastercard, and Visa.
+
+**A naming collision worth knowing, not just a footnote:** there are two unrelated protocols both abbreviated "ACP." IBM's **Agent Communication Protocol** — the one that merged into A2A above — is general agent-to-agent messaging. A **separate, unrelated "Agentic Commerce Protocol,"** also abbreviated ACP, was created by **OpenAI and Stripe** specifically for commerce, not IBM or the Linux Foundation. If you see "ACP" in a commerce context, it's almost certainly this second one, not the one that merged into A2A.
+
+None of this is mature enough to be a "learn this next" recommendation the way MCP and A2A are — treat it as a landscape to be aware of, not something to build a project on yet. If Stage 12's threat modeling ever needs to cover agent payments specifically, this is the section that would grow.
 
 ## Guardrails at the handoff, not just at the end
 
@@ -68,7 +82,15 @@ This isn't a replacement for Stage 12's guardrails (prompt injection, PII, sandb
 | Docs | [Google Agent Development Kit](https://google.github.io/adk-docs/) |
 | Docs | [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) |
 | Spec | [A2A Protocol specification](https://a2a-protocol.org/latest/specification/) |
+| Announcement | [A2A 1.0 — signed Agent Cards, cryptographic verification](https://a2a-protocol.org/latest/announcing-1.0/) |
+| Announcement | [Google — A2A, one year of open collaboration](https://opensource.googleblog.com/2026/04/a-year-of-open-collaboration-celebrating-the-anniversary-of-a2a.html) |
+| Announcement | [Linux Foundation — IBM's ACP joins forces with A2A](https://lfaidata.foundation/communityblog/2025/08/29/acp-joins-forces-with-a2a-under-the-linux-foundations-lf-ai-data/) |
+| Announcement | [Anthropic — Donating MCP, establishing the Agentic AI Foundation](https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation) |
 | Guide | [A2A in 2026 — Adoption, Hype, Reality](https://www.glukhov.org/ai-systems/comparisons/a2a-protocol-2026-adoption/) |
+| Announcement | [Google — Universal Commerce Protocol (UCP)](https://developers.googleblog.com/under-the-hood-universal-commerce-protocol-ucp/) |
+| Announcement | [Google Cloud — AP2 (Agent Payments Protocol)](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol) |
+| Announcement | [Coinbase — x402 launch](https://www.coinbase.com/developer-platform/discover/launches/x402) |
+| Spec | [OpenAI/Stripe — Agentic Commerce Protocol (the *other* ACP)](https://github.com/agentic-commerce-protocol/agentic-commerce-protocol) |
 | Book | Michael Yuan — *AI Agents in Action*, 2nd ed. (Manning), ch. 4 — source for guardrails-at-handoff and agents-as-guardrails, above; [repo with runnable examples](https://github.com/cxbxmxcx/AI-Agent-Workflows) |
 
 ### Learn LangGraph itself (official, start here)

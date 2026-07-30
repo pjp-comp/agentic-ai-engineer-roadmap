@@ -2,7 +2,7 @@
 
 # Stage 04 — Memory + State Management
 
-Short-term buffers · long-term vector recall · context compression · cross-session sync · forgetting/eviction policies
+Short-term buffers · long-term vector recall · context compression · cross-session sync · forgetting/eviction policies · memory-layer ecosystem (Letta/Zep/Cognee/Mem0)
 
 ## Why this matters
 
@@ -128,6 +128,10 @@ class LongTermMemory:
 
 A more sophisticated option some production systems use is clustering near-duplicate memories (e.g. with k-means) and replacing a cluster of redundant facts with one merged summary — this earns its complexity once you have thousands of memories with genuine overlap; for most projects, TTL + decay + supersession get you most of the benefit for a fraction of the engineering cost. Start with those three before reaching for clustering.
 
+## The dedicated memory-layer ecosystem
+
+The `LongTermMemory` class above is the pattern; you don't have to hand-roll the storage/retrieval/eviction plumbing yourself. A small set of dedicated memory-layer tools has emerged specifically for this problem — Mem0 (already cited below), Letta (the production successor to the MemGPT research project), Zep (built on a temporal knowledge graph, Graphiti), and Cognee (a self-improving knowledge-graph memory layer) are the ones worth knowing by name. Graph-based memory in particular — representing facts as a connected graph rather than a flat list, so retrieval can follow relationships ("who reports to whom," "which project depends on which") instead of pure similarity search — has moved from research-y and experimental toward genuinely production-used in real deployments over the past couple of years; that's a directional observation from watching the ecosystem, not a single citable fact, so treat it as "worth evaluating," not "the settled default." Reach for one of these instead of hand-rolling `LongTermMemory` once you need graph relationships between facts, not just a flat retrievable list — the class above is enough for most personal-agent use cases.
+
 ## Sources
 
 | Type | Resource |
@@ -138,6 +142,9 @@ A more sophisticated option some production systems use is clustering near-dupli
 | Tool | pgvector (Postgres), Chroma (local/embedded), Pinecone/Weaviate (managed) |
 | Blog | [mem0.ai — Memory eviction and forgetting in AI agents](https://mem0.ai/blog/memory-eviction-and-forgetting-in-ai-agents) |
 | Guide | [Zylos Research — Agent memory compression and state budget management](https://zylos.ai/research/2026-06-30-agent-memory-compression-state-budget-management/) |
+| Tool | [Letta](https://www.letta.com/) — production successor to the MemGPT research project; agent runtime with built-in memory management |
+| Tool | [Zep](https://www.getzep.com/) — memory built on Graphiti, a temporal knowledge graph, for relationship-aware recall |
+| Tool | [Cognee](https://www.cognee.ai/) — self-improving, GraphRAG-style knowledge-graph memory layer |
 
 ## Done when
 

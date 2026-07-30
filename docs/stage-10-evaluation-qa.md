@@ -2,7 +2,7 @@
 
 # Stage 10 — Evaluation + Quality Assurance
 
-Automated eval harnesses · LLM-as-a-judge · regression testing · hallucination metrics
+Automated eval harnesses · LLM-as-a-judge · regression testing · hallucination metrics · named agent benchmarks
 
 ## Why this matters
 
@@ -40,6 +40,22 @@ def judge(expected: str, actual: str) -> JudgeVerdict:
 | Tool | [Arize Phoenix — open-source eval & tracing](https://github.com/Arize-ai/phoenix) |
 | Guide | [Hands-on comparison: LangSmith, Langfuse, Arize evals](https://www.analyticsvidhya.com/blog/2026/06/agent-observability-with-langsmith-langfuse-arize/) |
 | Concept | Search "LLM-as-judge rubric design" — avoid single-score judges, use structured multi-criteria rubrics |
+| Survey | [LangChain — State of Agent Engineering (2025)](https://www.langchain.com/state-of-agent-engineering) — source for the 89%/52% observability-vs-eval gap above |
+| Benchmark | [Terminal-Bench](https://www.tbench.ai/) — hand-verified terminal/coding-agent tasks, Stanford/Laude Institute |
+| Benchmark | [Recovery-Bench (Letta)](https://github.com/letta-ai/recovery-bench) — measures recovery from corrupted/erroneous context, not just task success |
+
+## The observability/eval gap is real, and it's wide
+
+LangChain's "State of Agent Engineering" survey (Nov–Dec 2025, 1,340 respondents) found 89% of teams running production agents have implemented some form of observability, but only ~52% run offline evals — a 37-point gap between "we can see what the agent did" and "we systematically check whether it did the right thing." Watching an agent isn't the same as testing it; this stage's golden-dataset brief is specifically the less-adopted half of that pair, worth prioritizing precisely because it's the one most teams skip.
+
+## Named benchmarks worth knowing (not building)
+
+The golden dataset in this stage's brief is *your* eval suite, specific to your agent. Separately, a small set of standardized, cross-project benchmarks exist for comparing general agent capability — useful for context when reading about a new model or framework, not something you build yourself:
+
+- **Terminal-Bench** — a Stanford/Laude Institute benchmark of hand-verified terminal/coding tasks, now with a public leaderboard; the reference point for "how good is this agent at real command-line work."
+- **Recovery-Bench** — published by Letta, measures whether an agent can recover gracefully from corrupted or erroneous context mid-task, rather than just measuring whether it succeeds when everything goes right.
+
+Treat these the way you'd treat any published leaderboard: informative for comparing models/frameworks in the abstract, but not a substitute for the golden dataset in this stage's brief — that one has to reflect *your* agent's actual task, not a generic benchmark's.
 
 ## Eval vs. red-teaming — two different questions
 
