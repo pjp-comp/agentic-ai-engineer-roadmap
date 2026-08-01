@@ -2,7 +2,7 @@
 
 # Stage 02 — LLM Fundamentals for Agents
 
-Context engineering · model routing · token economics · cost optimization · latency tradeoffs · failure modes
+Context engineering · model routing · multi-model (cross-provider) agents · token economics · cost optimization · latency tradeoffs · failure modes
 
 ## Why this matters
 
@@ -55,6 +55,23 @@ def route(task_complexity: str) -> str:
 # instrument every call:
 # tokens_in, tokens_out, cache_read_tokens, latency_ms, $cost
 ```
+
+## Multi-model agents — routing across vendors, not just tiers
+
+The brief above routes within one vendor's tiers (Claude Haiku vs. Opus). **Multi-model** goes a level further: the router picks between entirely different providers or model families for the same task, not just cheap-vs-expensive versions of one. This repo's own `USE_LOCAL_MODEL` examples (`examples/01-basic-agent/`, `examples/02-*`) are a working instance of this — one flag switches the exact same agent between Claude and a local Llama model, with the rest of the code untouched.
+
+Reasons a real system reaches for this, beyond the single-vendor router's cost/latency tradeoff:
+
+- **Cost floor** — a local open-weight model has zero marginal cost per call once downloaded; routing high-volume, low-stakes calls there (not just to a cheaper *tier* of the same paid API) can eliminate cost entirely for that slice of traffic, not just reduce it.
+- **Availability/fallback** — if one provider has an outage or rate-limits you, a router that only knows one vendor's model names has no fallback at all. A multi-model router can fail over to a different provider, not just a different tier of a now-unavailable one.
+- **Avoiding lock-in** — a codebase that only ever calls one vendor's SDK makes switching providers later a rewrite, not a config change. The `_build_llm()` pattern in this repo's examples (branch on a flag, return an object satisfying the same interface) is the concrete shape of avoiding that.
+- **Playing to model-specific strengths** — some models are measurably better at specific sub-tasks (e.g. one family's tool-calling reliability vs. another's summarization quality); a router can send each sub-task to whichever model is actually best at it, not just whichever is cheapest.
+
+The mechanics are the same `route()` function from the brief above — it just returns a *provider* along with (or instead of) a model name, and the calling code needs a `_build_llm()`-style branch (as in this repo's examples) rather than a single hardcoded SDK client. The real cost isn't the routing logic — it's that every downstream assumption (tool-call schema shape, `stop_reason` vs. `finish_reason`, streaming format) now has to be normalized across providers, which is exactly the kind of translation work `examples/03-mcp-tool-server/agent.py`'s dual `_mcp_tool_to_claude_schema`/`_mcp_tool_to_ollama_schema` functions show concretely.
+
+**A caveat worth knowing before reaching for this by default**: mixing model families isn't free of behavioral risk. Different models don't just vary in cost and speed — they vary in how strictly they follow tool schemas (see the `01_multi_tool_agent` note above on Llama sending a number as a string where Claude didn't) and in how reliably they judge *when* to call a tool at all (see `examples/02-longterm-memory-agent-local-langgraph/README.md`'s documented gap). A multi-model router needs the same defensive input handling and evals (Stage 10) applied per-provider, not assumed to transfer from whichever model you tested with first.
+
+At production scale, a gateway (e.g. LiteLLM, already cited in [Stage 13](stage-13-deployment.md)) normalizes this translation work across providers for you, rather than hand-writing `_build_llm()`-style branches per project — worth reaching for once you have more than one or two providers to route across.
 
 ## Sources
 

@@ -2,11 +2,27 @@
 
 # Stage 07 — Single-Agent Workflows
 
-Workflow patterns · ReAct loops · Tree-of-Thought · self-reflection · iteration limits · graceful degradation · cognitive architecture (confidence gating, attention, knowledge boundaries)
+Workflow patterns · ReAct loops · Tree-of-Thought · self-reflection · iteration limits · graceful degradation · cognitive architecture (confidence gating, attention, knowledge boundaries) · harness/loop/graph engineering
 
 ## Why this matters
 
 Before orchestrating multiple agents, get one agent reliably looping: reason → act → observe → decide, with a hard ceiling on iterations and a defined fallback when it can't converge. This is the load-bearing pattern everything in Stage 8 builds on.
+
+## Harness, Loop, and Graph — the current framing for how agents get built
+
+By 2026 the field settled on a three-part vocabulary for what "building an agent" actually means, popularized by Martin Fowler's writing on coding-agent harnesses and Vin Vashishta's "Harness, Loop, and Graph" framework. It's worth knowing by name because it's a map of this entire roadmap, not a new technique — it names things you've already been building in Stages 2–8 and clarifies which layer a given problem actually lives in.
+
+**Agent = Model + Harness.** The model reasons; the harness is everything else — the code, config, and execution logic that turns a model's raw text output into governed, auditable action. Three questions, three layers:
+
+| Layer | Answers | Where it lives in this roadmap |
+|---|---|---|
+| **Harness** | What can the agent see and do? | Stage 2 (context engineering, what goes into the window), Stage 3 (tool schemas, what actions are possible), Stage 4 (memory — what persists), Stage 6 (session/state — what's in scope this turn), Stage 12 (permissions, sandboxing, what's allowed) |
+| **Loop** | How does it decide what to do next, and when does it stop? | This stage's ReAct loop, Reflexion/stagnation check, iteration caps, and graceful degradation — all above and below this section |
+| **Graph** | Does one agent do everything, or is the work split across several? | Stage 8 — supervisor patterns, handoffs, multi-agent topology |
+
+**The differentiation that actually matters:** these aren't competing architectures you choose between — they're three different questions about the *same* system, and conflating them is the most common source of confusion when reading about "agent architecture" online. A weak harness (a tool with a vague schema, a context window stuffed with irrelevant history) makes the loop unreliable no matter how well the loop itself is designed — the model is reasoning well over bad inputs. A well-designed loop with no graph is still just one agent; adding a graph doesn't fix a loop that doesn't know when to stop, it just runs that same unreliable loop in more places at once. Fixing the wrong layer is a common debugging trap: an agent that "hallucinates" a tool call that doesn't exist is usually a harness problem (bad tool schema or missing context), not a loop problem — no amount of retry logic fixes a tool the model was never given accurate information about.
+
+**Practical ordering:** get the harness right first (Stages 2–6), then the loop (this stage), then reach for a graph (Stage 8) only once a single well-harnessed, well-looped agent is the actual bottleneck — not before. This is the same "start simple" advice the six-workflow-patterns table below gives, just phrased at the level of the system's three structural layers instead of one call's control flow.
 
 ## Beginner focus
 
@@ -41,6 +57,10 @@ return degrade_gracefully(state)  # partial answer, not a crash
 | Guide | [Anthropic — Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents) — the source for the six-pattern table below; read this before reaching for the most complex pattern by default |
 | Guide | [ReAct vs Plan-and-Execute vs ReWOO vs Reflexion — compared](https://theaiengineer.substack.com/p/the-4-single-agent-patterns) |
 | Docs | [LangGraph — StateGraph / agent loop primitives](https://docs.langchain.com/oss/python/langgraph/overview) |
+| Article | [Martin Fowler — Harness engineering for coding agent users](https://martinfowler.spicytakes.org/post/2026-04-02-harness-engineering) — source for the harness/loop/graph section above |
+| Guide | [Vin Vashishta — Harness, Loop, & Graph: A Simple Explanation of How AI Agents Are Built](https://vinvashishta.substack.com/p/harness-loop-and-graph-a-simple-explanation) |
+| Guide | [Vin Vashishta — Harness, Loop, & Graph, Part 2](https://vinvashishta.substack.com/p/harness-loop-and-graph-part-2-a-simple) |
+| Blog | [Databricks — What is an AI Agent Harness?](https://www.databricks.com/blog/ai-harness) |
 | Book | Michael Yuan — *AI Agents in Action*, 2nd ed. (Manning) — source for Tree-of-Thought and the cognitive-architecture (perception/planning/execution/evaluation/attention) framing below; [repo with runnable examples](https://github.com/cxbxmxcx/AI-Agent-Workflows) |
 
 ## Done when
