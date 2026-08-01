@@ -252,6 +252,43 @@ _OLLAMA_TOOLS = [
 ]
 
 
+_TOOL_NAMES = {t["name"] for t in TOOLS}
+_REQUIRED_PARAMS = {t["name"]: set(t["input_schema"]["required"]) for t in TOOLS}
+
+
+def _extract_written_out_tool_call(text: str) -> tuple[str, dict] | None:
+    """If `text` contains a clean, well-formed tool-call JSON blob — the
+    model wrote {"name": ..., "parameters": {...}} as text instead of
+    actually calling the tool — return (tool_name, arguments). Otherwise
+    return None. See examples/01-basic-agent/agent.py for the full
+    explanation; this is the same idea generalized to four tools instead
+    of one — deliberately strict: only fires on a clean parse with a known
+    tool name and all its required arguments present. Anything messier is
+    left alone and returned as plain text, same as before.
+    """
+    if '"name"' not in text:
+        return None
+    import json
+    import re
+
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        parsed = json.loads(match.group(0))
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    name = parsed.get("name")
+    if not isinstance(name, str) or name not in _TOOL_NAMES:
+        return None
+    params = parsed.get("parameters")
+    if not isinstance(params, dict) or not _REQUIRED_PARAMS[name] <= params.keys():
+        return None
+    return name, params
+
+
 def _run_agent_local(user_task: str) -> str:
     import ollama
 
@@ -265,6 +302,20 @@ def _run_agent_local(user_task: str) -> str:
         msg = response.message
 
         if not msg.tool_calls:
+            written_out = msg.content and _extract_written_out_tool_call(msg.content)
+            if written_out:
+                # The model wrote a correct-looking tool call as text
+                # instead of issuing it for real. Run it directly — no
+                # round trip asking the model to "please call it again,"
+                # since that risks a different (sometimes worse) response
+                # the second time.
+                name, args = written_out
+                print(f"  [tool call] {name}({args}) — written as text, running directly", file=sys.stderr)
+                handler = _DISPATCH.get(name)
+                result = handler(args) if handler else f"Error: unknown tool '{name}'"
+                messages.append({"role": "assistant", "content": msg.content})
+                messages.append({"role": "tool", "content": result})
+                continue
             return msg.content or "(no text response)"
 
         messages.append({"role": "assistant", "content": msg.content, "tool_calls": msg.tool_calls})

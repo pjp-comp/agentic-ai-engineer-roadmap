@@ -170,6 +170,45 @@ _OLLAMA_TOOLS = [
 ]
 
 
+def _extract_written_out_tool_call(text: str) -> dict | None:
+    """If `text` contains a clean, well-formed tool-call JSON blob — the
+    model wrote {"name": "calculate", "parameters": {"expression": "..."}}
+    as text instead of actually calling the tool — return its arguments
+    dict. Otherwise return None.
+
+    Small local models occasionally do this: after already calling the
+    tool once, on a later step they write out what looks exactly like a
+    real tool call, just as the *content* of a normal response instead of
+    a structured one. When the JSON is clean and has the right shape, the
+    expression inside it is usually correct — the model reasoned correctly
+    about what to do next, it just didn't call the tool through the
+    expected channel. Rather than asking it to retry (which risks getting
+    a *different*, sometimes wrong, response the second time), just run
+    the expression that's already sitting right there. Deliberately strict:
+    only fires on a clean parse with the exact expected shape — anything
+    messier (broken escaping, missing keys) is left alone and returned as
+    plain text, same as before.
+    """
+    if '"name"' not in text or f'"{TOOLS[0]["name"]}"' not in text:
+        return None
+    import json
+    import re
+
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        parsed = json.loads(match.group(0))
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(parsed, dict) or parsed.get("name") != TOOLS[0]["name"]:
+        return None
+    params = parsed.get("parameters")
+    if not isinstance(params, dict) or "expression" not in params:
+        return None
+    return params
+
+
 def _run_agent_local(user_task: str) -> str:
     import ollama
 
@@ -183,6 +222,20 @@ def _run_agent_local(user_task: str) -> str:
         msg = response.message
 
         if not msg.tool_calls:
+            written_out = msg.content and _extract_written_out_tool_call(msg.content)
+            if written_out:
+                # The model wrote a correct-looking tool call as text
+                # instead of issuing it for real. Run it directly — no
+                # round trip asking the model to "please call it again,"
+                # since that risks a different (sometimes worse) response
+                # the second time. This mirrors what a real tool_calls
+                # entry would have triggered below, just reached via text.
+                print(f"  [tool call] calculate({written_out}) — written as text, running directly", file=sys.stderr)
+                result = calculate(written_out["expression"])
+                messages.append({"role": "assistant", "content": msg.content})
+                messages.append({"role": "tool", "content": result})
+                continue
+
             # Model is done — same check as the Claude path's
             # `stop_reason != "tool_use"`, expressed against Ollama's
             # tool_calls list instead of a stop_reason field.
