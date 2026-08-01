@@ -87,7 +87,19 @@ TOOLS = [
 
 SYSTEM_PROMPT = (
     "You are a precise assistant. For any arithmetic, always use "
-    "the calculate tool rather than computing it yourself."
+    "the calculate tool rather than computing it yourself. If a task "
+    "requires more than one calculation step, call the tool again for "
+    "each remaining step — do not switch to doing the rest of the math "
+    "yourself just because you already called the tool once. Only give "
+    "a final text answer once every calculation in the task is done. "
+    "When a word problem describes multiple steps (e.g. 'do X and Y, "
+    "then divide the result by Z'), be careful with order of operations: "
+    "'the result' of an earlier step must be fully computed — and "
+    "parenthesized if needed — before the next operation is applied to "
+    "it. Do not write one flat expression like 'a*b+c/d' for a task that "
+    "means '(a*b+c)/d' — get this wrong and the calculate tool will "
+    "compute a different, wrong expression correctly, which is worse "
+    "than an obvious error because it looks right."
 )
 
 

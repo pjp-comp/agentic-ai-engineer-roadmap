@@ -4,7 +4,7 @@
 
 Same ReAct loop as [`examples/01-basic-agent/`](../01-basic-agent/), but with four tools instead of one. The basic example proves the model *can* call a tool; this one proves it can choose the *right* one — the part that actually matters once an agent has more than a single job.
 
-**Runs against a free local Ollama model by default** (`USE_LOCAL_MODEL=true`) — same switch as every other example, set `USE_LOCAL_MODEL=false` for Claude instead. Worth knowing: testing this example locally surfaced a real local-model quirk — Llama 3.2 3B sometimes sends `convert_units`' numeric `value` as a string (`'5'`) instead of a number, where Claude follows the JSON schema strictly. `convert_units()` now coerces defensively (`float(value)`) rather than trusting either model's schema compliance.
+**Runs against a free local Ollama model by default** (`USE_LOCAL_MODEL=true`) — same switch as every other example, set `USE_LOCAL_MODEL=false` for Claude instead. Worth knowing: testing this example locally surfaced a real local-model quirk — Llama 3.2 3B sometimes sends `convert_units`' numeric `value` as a string (`'5'`) instead of a number, where Claude follows the JSON schema strictly. `convert_units()` now coerces defensively (`float(value)`) rather than trusting either model's schema compliance. On multi-step tasks the local model can also skip a tool call or build the wrong expression — the loop itself stays deliberately simple rather than trying to detect and auto-correct that (see `examples/01-basic-agent/README.md`'s "What to look at closely" for why that was tried and then removed).
 
 ## What it is
 
