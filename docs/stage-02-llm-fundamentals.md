@@ -26,6 +26,8 @@ Every stage after this one talks about "tokens," "context windows," and "tempera
 
 You'll see `temperature=0.3` set directly in this repo's runnable examples (e.g. [`examples/02-memory-agent-local-langgraph/agent.py`](../examples/02-memory-agent-local-langgraph/agent.py)) — that's a low-but-not-zero setting chosen for a chat agent that should be consistent but not robotic. An agent calling tools with structured arguments generally wants temperature at or near 0: you're not looking for creative variation in a JSON schema.
 
+**Runnable, hands-on version of this table:** [`examples/00_llm_fundamentals/`](../examples/00_llm_fundamentals/) — not an agent, just raw calls to a local model. Covers temperature/top-p side by side, a prompt's real token IDs plus token-by-token streamed generation, and a model's separate "thinking" field next to its final answer — so all of this section's claims are things you watch happen, not only read about.
+
 ## Core prompting technique, before context engineering replaces it
 
 "Context engineering" (below) is the broader skill this stage is really teaching, but it's worth having the narrower prompting fundamentals first — context engineering is an extension of these ideas, not a replacement for needing them:

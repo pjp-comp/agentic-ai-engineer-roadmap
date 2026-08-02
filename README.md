@@ -88,6 +88,10 @@ These terms get used interchangeably, but they describe different points on a sp
 
 The short version: **an AI agent is a component; agentic AI is a system of components pursuing a goal with minimal supervision.** A single ReAct loop that calls a weather API is an agent. A crew of agents that researches a market, drafts a strategy, and revises it based on a critic agent's feedback is agentic AI. Stage 7 in this roadmap teaches you to build the former well; Stage 8 teaches you to compose several of them into the latter.
 
+## Start here, before any agent: sampling parameters
+
+[`examples/00_llm_fundamentals/`](examples/00_llm_fundamentals/) isn't an agent — no tools, no loop, just raw calls to a local model, so [Stage 2's mechanics](docs/stage-02-llm-fundamentals.md#how-llms-actually-work--the-mechanics-everything-else-in-this-roadmap-assumes) become things you watch happen instead of only read about: temperature/top-p side by side, a prompt's real token IDs plus token-by-token streamed generation, and a model's separate "thinking" field next to its final answer. Every `agent.py` in this repo sets `temperature=0` (or `0.3`) without explaining why on the page — this is where that "why" comes from, before any tool-calling complexity gets added on top.
+
 ## Start here: a basic AI agent
 
 Before touching a framework, build one agent from raw API calls so the ReAct loop isn't a mystery a library is hiding from you. [`examples/01-basic-agent/`](examples/01-basic-agent/) is a ~120-line Python script: one tool (calculator), one loop, no framework. Run it, then read Stage 7 and Stage 8 knowing exactly what "framework magic" is standing in for.
