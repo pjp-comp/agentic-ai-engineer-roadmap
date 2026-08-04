@@ -1,0 +1,15 @@
+[project]
+name = "rag-langgraph"
+version = "0.1.0"
+description = "Corrective RAG (CRAG) as an explicit LangGraph graph — retrieve, grade, generate or rewrite-and-retry. Ollama only, local chat + local embeddings."
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.2.0",
+    "langchain-core>=0.3.0",
+    "langchain-ollama>=0.2.0",
+    "langchain-chroma>=0.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

@@ -57,6 +57,8 @@ def corrective_rag(query: str, vector_store, llm) -> str:
     return llm.generate(f"Context:\n{context}\n\nQuestion: {query}")
 ```
 
+**Runnable version:** [`examples/stage05-rag-langgraph/`](../examples/stage05-rag-langgraph/) builds this exact corrective-RAG logic as a real LangGraph graph instead of nested function calls — `retrieve` → `grade` → a conditional edge that routes to `generate`, `rewrite_query` (retry once), or `refuse`, so the decision loop's *shape* is something you see in the graph definition. Runs entirely on Ollama (local chat model + local embeddings), against a small synthetic corpus so a correct answer can only come from retrieval, never from the model's training data.
+
 ## Where this fits a multi-agent build
 
 If you're building a multi-agent system that mixes qualitative (news, filings, sentiment) and quantitative (prices, ratios, indicators) data — a stock analysis system is the canonical example — split the two cleanly: a research/sentiment agent uses RAG over news and filings; a data-fetcher and technical-analysis agent use direct tool calls (Stage 3) over a market data API. Don't embed numeric time-series data into a vector store to "make it searchable" — that's the most common RAG misuse, and it produces an agent that's confidently approximate about numbers that need to be exact.

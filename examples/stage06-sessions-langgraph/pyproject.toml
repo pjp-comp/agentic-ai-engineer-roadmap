@@ -1,0 +1,14 @@
+[project]
+name = "sessions-langgraph"
+version = "0.1.0"
+description = "Session/state/events (Stage 6) as real LangGraph mechanics — thread_id-scoped SqliteSaver persistence, a researcher/writer pair communicating only through shared state. Ollama only."
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.2.0",
+    "langgraph-checkpoint-sqlite>=2.0.0",
+    "langchain-ollama>=0.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

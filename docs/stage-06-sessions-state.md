@@ -112,6 +112,8 @@ writer_turn(session)  # only proceeds because it can see research_done=True in s
 
 Neither agent has a reference to the other — only to the session. This is why it composes: adding a third agent means giving it read/write access to the same session, not wiring a new direct channel to every existing agent.
 
+**Runnable version:** [`examples/stage06-sessions-langgraph/`](../examples/stage06-sessions-langgraph/) builds this exact researcher/writer handoff on LangGraph's real session primitives — `thread_id` as the session ID, a `SqliteSaver` checkpointer for genuine cross-process persistence (not just "the variable is still in scope"), and an explicit `events` field in the state schema since LangGraph's own checkpoint history is state snapshots, not a named event log. Runs entirely on Ollama.
+
 ## Sources
 
 | Type | Resource |
