@@ -27,6 +27,8 @@ def sanitize_tool_output(text: str) -> str:
     # is instructed to treat it as data, never as instructions
 ```
 
+**Runnable version:** [`examples/stage12-guardrails/`](../examples/stage12-guardrails/) builds all three pieces of this brief for real — injection detection + neutralization, a per-role tool allowlist enforced in code, and a genuinely sandboxed subprocess for code execution — then runs five scenarios including the actual "ignore previous instructions" attack this stage's "Done when" names. Runs entirely on Ollama.
+
 ## Beyond prompt injection — risks specific to agentic systems
 
 The OWASP LLM Top 10 above is written for single-model applications. Once an agent has memory, tools, and (per Stage 8) other agents to coordinate with, a separate list applies: the **OWASP Top 10 for Agentic Applications** (endorsed by NIST, Microsoft, and NVIDIA). The risks that don't reduce to "sanitize tool output" from this stage's brief:

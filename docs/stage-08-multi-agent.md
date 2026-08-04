@@ -29,6 +29,8 @@ graph.add_edge("writer", "supervisor")
 
 **New to `StateGraph`?** [`examples/stage03-tool-calling-langgraph/`](../examples/stage03-tool-calling-langgraph/) builds the smallest possible one first — a single-node loop, not a supervisor — by rebuilding example 01's raw-API agent on LangGraph, with a line-by-line map of what `StateGraph`, `ToolNode`, and `tools_condition` each replace. Worth running before jumping straight to a two-worker supervisor graph.
 
+**Runnable version:** [`examples/stage08-supervisor-langgraph/`](../examples/stage08-supervisor-langgraph/) builds this exact supervisor graph — a router node deciding "who's next" with no LLM call, a researcher and writer worker, plus a critic node sitting at the researcher→writer handoff that rejects thin research instead of forwarding it (the "Guardrails at the handoff" pattern below, built as an actual node). Runs entirely on Ollama.
+
 ## Beyond LangGraph/CrewAI — the wider 2026 framework field
 
 LangGraph and CrewAI are one reasonable default, not the whole field. Knowing what else exists matters when a project's constraints (language, team preference, or a specific pattern the framework makes easy) point elsewhere:

@@ -22,6 +22,8 @@ graph.update_state(thread_id, {"approved": True})
 graph.invoke(None, config={"configurable": {"thread_id": thread_id}})
 ```
 
+**Runnable version:** [`examples/stage09-human-in-the-loop/`](../examples/stage09-human-in-the-loop/) builds this exact interrupt/resume flow — `interrupt_before` on a high-risk action node, a `SqliteSaver` checkpoint (standing in for `PostgresSaver` above), and an approve/reject decision applied in a genuinely separate process, proving the resume isn't just "the variable stayed in scope." Runs entirely on Ollama.
+
 ## Sources
 
 | Type | Resource |

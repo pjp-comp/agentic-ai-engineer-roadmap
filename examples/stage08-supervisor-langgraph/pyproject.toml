@@ -1,0 +1,13 @@
+[project]
+name = "supervisor-langgraph"
+version = "0.1.0"
+description = "Stage 8's supervisor pattern as a real LangGraph StateGraph -- a router node (no LLM call), two worker agents, and a guardrail-at-the-handoff critic node between them. Ollama only."
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.2.0",
+    "langchain-ollama>=0.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

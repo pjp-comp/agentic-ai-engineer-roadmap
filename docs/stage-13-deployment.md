@@ -69,6 +69,8 @@ class CachedTool:
 
 **Not every tool needs this.** Read-only, side-effect-free tools (a calculator, a search) don't need idempotency keys — running them twice is harmless, though caching them still saves cost. Reserve idempotency keys specifically for tools with real side effects: anything that writes, charges, sends, or deletes.
 
+**Runnable version:** [`examples/stage13-idempotent-tools/`](../examples/stage13-idempotent-tools/) builds both `idempotency_key()` and `CachedTool` for real, then simulates the exact failure this section describes — a process dying right after a `charge_card` call, before the caller sees the response — and proves the retry that follows doesn't double-charge. No LLM required; this is the tool layer underneath an agent, not the model.
+
 ## Sources
 
 | Type | Resource |

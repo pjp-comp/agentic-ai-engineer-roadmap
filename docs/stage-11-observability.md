@@ -19,6 +19,8 @@ os.environ["LANGCHAIN_PROJECT"] = "agent-stage9"
 # or use OpenTelemetry exporters for a vendor-neutral pipeline
 ```
 
+**Runnable version:** [`examples/stage11-observability/`](../examples/stage11-observability/) instruments the exact Stage 8 supervisor graph this brief describes with real spans (input/output, real token counts from Ollama, latency, cost) written to a local trace log — no hosted backend required — plus a dashboard script for p95 latency/$-per-run and a `--trace <id>` lookup for finding the exact span behind a bad output. Runs entirely on Ollama.
+
 ## Sources
 
 | Type | Resource |

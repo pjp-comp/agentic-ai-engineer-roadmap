@@ -1,0 +1,13 @@
+[project]
+name = "observability"
+version = "0.1.0"
+description = "Stage 11's tracing brief applied to the Stage 8 supervisor graph -- every node emits a real span (input/output/tokens/latency/cost) to a local JSONL trace log, plus a dashboard script for p95 latency and $/run. No hosted tracing backend required. Ollama only."
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.2.0",
+    "langchain-ollama>=0.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

@@ -1,0 +1,9 @@
+[project]
+name = "idempotent-tools"
+version = "0.1.0"
+description = "Stage 13's idempotency-key and tool-caching brief -- a deterministic idempotency_key(), a charge_card tool guarded against double-charging on retry, a TTL-cached read-only tool, and a simulated crash-then-retry that proves the side effect ran exactly once. No LLM required for this half of Stage 13."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.uv]
+package = false

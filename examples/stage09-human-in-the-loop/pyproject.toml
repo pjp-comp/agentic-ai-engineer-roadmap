@@ -1,0 +1,14 @@
+[project]
+name = "human-in-the-loop"
+version = "0.1.0"
+description = "Stage 9's approval-gate brief on real LangGraph interrupt_before + SqliteSaver -- a graph pauses before a high-risk action, a human approves or rejects in a separate process, the graph resumes from exactly where it paused. Ollama only."
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.2.0",
+    "langgraph-checkpoint-sqlite>=2.0.0",
+    "langchain-ollama>=0.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

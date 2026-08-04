@@ -29,13 +29,66 @@ part is the grading step refusing to build an answer on weak context —
 same idea as Stage 3's validation-error recovery, applied to retrieval
 quality instead of malformed tool arguments.
 
+HOW THE VECTOR STORE ACTUALLY WORKS, mechanically:
+
+  Embedding: each document's TEXT gets converted into a VECTOR — a fixed-
+  length list of floating-point numbers (768 of them, for nomic-embed-text)
+  that represents that text's MEANING as one point in a high-dimensional
+  space. This isn't a hash and it isn't a keyword index — two sentences
+  that share zero words but mean similar things ("the CEO resigned" /
+  "the chief executive stepped down") land as two NEARBY points in that
+  768-dimensional space, because the embedding model was trained so that
+  distance in vector-space tracks semantic similarity, not word overlap.
+
+  Storing: Chroma (this example's vector database) keeps each vector next
+  to the original text and its metadata (here: {"source": "..."}) in a
+  structure built for fast nearest-neighbor lookup — given a NEW vector,
+  quickly find which stored vectors are closest to it, without comparing
+  against every single one by brute force once a collection gets large.
+  (At 5 documents brute force would be instant either way — this matters
+  at thousands-to-millions of vectors, which is the scale ChromaDB's
+  underlying index structure is actually built for.)
+
+  Retrieving: a QUESTION gets embedded with the exact same model, into a
+  vector in the exact same space. "Nearest neighbors" to that vector are
+  the documents whose MEANING is closest to the question's meaning — this
+  is what similarity_search() is doing under the hood. Distance is
+  typically cosine similarity (the angle between two vectors) rather than
+  raw Euclidean distance, which is why "how alike is the MEANING" survives
+  even when the phrasing is completely different. See retrieve()/grade()
+  below for what happens with those nearest-neighbor results once found —
+  vector search picks CANDIDATES, it doesn't decide they're actually
+  relevant (that's grade()'s job, the corrective half of CRAG).
+
+  The embedding model and the vector database are two SEPARATE pieces of
+  software doing two different jobs: OllamaEmbeddings (below) does the
+  text -> vector conversion; Chroma does the storing + nearest-neighbor
+  search over vectors it doesn't generate itself. Swapping either one
+  independently (a different embedding model, a different vector DB like
+  pgvector or Pinecone) is a real, common thing to do, precisely because
+  they're decoupled.
+
+The vector store is PERSISTED to disk in this example's own folder
+(.chroma_crag/), the same pattern stage04-longterm-memory-vectorstore
+uses. Embedding is a real, separate step from querying — this repo splits
+them into two commands: run build_index.py ONCE to embed and persist
+_DOCS, then run agent.py as many times as you want against that already-
+built index, with no re-embedding on any of those later runs. (agent.py
+still auto-builds the index itself if you skip that step and .chroma_crag/
+doesn't exist yet — a convenience fallback, not the intended workflow;
+see build_index.py's own docstring for the full explanation of what
+"building an index" means step by step.)
+
 Usage:
     ollama pull llama3.2:3b        # one-time, ~2GB, shared with other examples
     ollama pull nomic-embed-text   # one-time, ~274MB, shared with stage04-longterm-memory-vectorstore
-    uv run agent.py "What was Northwind Traders' revenue in fiscal 2025?"
-    uv run agent.py "What is the capital of France?"   # forces the refusal path — nothing in the corpus is relevant
+    uv run build_index.py                                      # build the index once, explicitly
+    uv run agent.py "Why did the monkey refuse to give the crocodile his heart?"
+    uv run agent.py "What is the capital of France?"           # forces the refusal path — nothing in the corpus is relevant
+    uv run build_index.py --force                              # re-embed after editing _DOCS
 """
 
+import shutil
 import sys
 from pathlib import Path
 from typing import TypedDict
@@ -52,49 +105,74 @@ LOCAL_MODEL = "llama3.2:3b"
 EMBEDDING_MODEL = "nomic-embed-text"
 RETRIEVE_K = 3
 MAX_RETRIES = 1
+PERSIST_DIR = Path(__file__).parent / ".chroma_crag"
 
 # --- The corpus: a small set of documents the model did NOT train on -------
-# Deliberately synthetic and specific (invented company, invented numbers)
-# so a correct answer can ONLY come from retrieval — there's no way for the
-# model to "already know" this from training data, which makes it obvious
-# when the graph is actually using retrieved context vs. guessing.
+# A classic Panchatantra tale — "The Monkey and the Crocodile" — split into
+# distinct passages (the story itself, its moral, background on the
+# Panchatantra collection, and an unrelated second tale) rather than one
+# fictional company's filings. Still deliberately structured so a correct
+# answer requires retrieval AND discrimination: the "unrelated tale" doc
+# shares characters/setting with the real story but answers a DIFFERENT
+# question, so grading has real work to do, not just "found something or not."
 
 _DOCS = [
     Document(
         page_content=(
-            "Northwind Traders FY2025 Annual Report Summary: Total revenue for "
-            "fiscal year 2025 was $184.3 million, up 12% from $164.6 million in "
-            "FY2024. Growth was driven primarily by the Pacific region, which "
-            "grew 22% year-over-year."
+            "The Monkey and the Crocodile (Panchatantra): A monkey named "
+            "Raktamukha lived in a rose-apple tree by a river and befriended a "
+            "crocodile who came to eat the sweet fruit. The monkey shared fruit "
+            "with him daily. The crocodile's wife grew jealous and demanded the "
+            "monkey's heart, believing an animal who ate such sweet fruit daily "
+            "must have a sweet heart worth eating. The crocodile reluctantly "
+            "agreed to trick his friend."
         ),
-        metadata={"source": "annual_report_fy2025.txt"},
+        metadata={"source": "monkey_and_crocodile_part1.txt"},
     ),
     Document(
         page_content=(
-            "Northwind Traders Q3 FY2025 Earnings Call Notes: CFO Priya Ramesh "
-            "noted that operating margin improved to 14.2%, up from 11.8% a "
-            "year earlier, attributing the gain to warehouse automation "
-            "completed in Q2."
+            "The Monkey and the Crocodile, continued: The crocodile invited the "
+            "monkey to his home across the river, carrying him on his back. "
+            "Midway, the crocodile admitted the plan to kill him for his heart. "
+            "Thinking quickly, the monkey said he had left his heart behind in "
+            "the rose-apple tree, as monkeys always do, and offered to fetch it. "
+            "The crocodile swam back to shore, and the monkey leapt to safety "
+            "into the tree, refusing to ever trust the crocodile again."
         ),
-        metadata={"source": "q3_earnings_call.txt"},
+        metadata={"source": "monkey_and_crocodile_part2.txt"},
     ),
     Document(
         page_content=(
-            "Northwind Traders Executive Team: CEO is Daniel Okafor, appointed "
-            "in 2022. CFO is Priya Ramesh, appointed in 2023. The company is "
-            "headquartered in Portland, Oregon, and was founded in 2009."
+            "Moral of the Monkey and the Crocodile: The story teaches that "
+            "presence of mind and wit can overcome betrayal by someone more "
+            "powerful, and that true friendship should not be sacrificed to "
+            "satisfy another's greed. It is one of the best-known tales from "
+            "the Panchatantra's first book, Mitra-bheda (The Loss of Friends)."
         ),
-        metadata={"source": "company_overview.txt"},
+        metadata={"source": "monkey_and_crocodile_moral.txt"},
     ),
     Document(
         page_content=(
-            "Northwind Traders Risk Factors (FY2025 filing excerpt): The "
-            "company's Pacific region growth is concentrated in three "
-            "distribution centers; disruption to any one of them could "
-            "materially affect quarterly results. Currency exposure to the "
-            "Japanese yen is partially hedged."
+            "About the Panchatantra: an ancient Indian collection of "
+            "interrelated animal fables in Sanskrit verse and prose, compiled "
+            "by Vishnu Sharma around the 3rd century BCE to teach principles of "
+            "statecraft and wise conduct to young princes. It is organized into "
+            "five books (tantras), each built around a frame story containing "
+            "further nested tales."
         ),
-        metadata={"source": "risk_factors.txt"},
+        metadata={"source": "panchatantra_background.txt"},
+    ),
+    Document(
+        page_content=(
+            "The Tortoise and the Geese (a different Panchatantra tale): a "
+            "talkative tortoise asked two geese friends to carry him during a "
+            "drought by gripping a stick in his mouth while they held the ends. "
+            "He was warned not to speak mid-flight. When onlookers below "
+            "mocked the sight, the tortoise opened his mouth to retort, lost "
+            "his grip, and fell to his death — a warning about the dangers of "
+            "talking too much at the wrong moment."
+        ),
+        metadata={"source": "tortoise_and_geese.txt"},
     ),
 ]
 
@@ -108,10 +186,45 @@ class RAGState(TypedDict):
     answer: str
 
 
-def _build_vector_store() -> Chroma:
+def _build_vector_store(rebuild: bool = False) -> Chroma:
+    """Opens the persisted index at PERSIST_DIR. The intended workflow is
+    running build_index.py once, BEFORE this ever runs, so this function
+    normally only ever OPENS an existing index — it doesn't embed
+    anything.
+
+    The is_new branch below is a fallback for skipping that step: if
+    PERSIST_DIR doesn't exist yet, this embeds _DOCS itself rather than
+    failing outright, so `uv run agent.py` alone still works standalone.
+    That fallback is what makes this function look like it "builds" the
+    store — really, in the intended workflow, build_index.py already did
+    that, and this just opens what's on disk.
+
+    rebuild=True wipes PERSIST_DIR first, forcing a fresh embed here
+    directly, as a shortcut to `uv run build_index.py --force` — the
+    escape hatch for "I edited _DOCS and need the index to reflect that"
+    (a persisted index doesn't know its source documents changed
+    underneath it; nothing here diffs old vs. new automatically).
+    """
+    if rebuild and PERSIST_DIR.exists():
+        shutil.rmtree(PERSIST_DIR)
+
     embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
-    store = Chroma(collection_name="crag_demo", embedding_function=embeddings)
-    store.add_documents(_DOCS)
+    is_new = not PERSIST_DIR.exists()
+    store = Chroma(
+        collection_name="crag_demo",
+        embedding_function=embeddings,
+        persist_directory=str(PERSIST_DIR),
+    )
+    if is_new:
+        print(
+            f"  [vector store] WARNING: no index found at {PERSIST_DIR.name}/ -- "
+            f"embedding {len(_DOCS)} document(s) now as a fallback. "
+            "Run `uv run build_index.py` first next time to skip this.",
+            file=sys.stderr,
+        )
+        store.add_documents(_DOCS)
+    else:
+        print(f"  [vector store] opened persisted index at {PERSIST_DIR.name}/ (no embedding needed)", file=sys.stderr)
     return store
 
 
@@ -127,6 +240,15 @@ def _build_llm() -> ChatOllama:
 
 def make_retrieve_node(vector_store: Chroma):
     def retrieve(state: RAGState) -> dict:
+        # similarity_search() does two things in one call: embeds
+        # state["query"] into a vector using the SAME embedding model
+        # that built the index (EMBEDDING_MODEL — mismatching models here
+        # would put the query in a different vector space than the
+        # documents, making distance meaningless), then asks Chroma for
+        # the k stored vectors nearest to it. "Nearest" is cosine
+        # similarity by default — closest in MEANING, not closest in
+        # literal wording. This returns k CANDIDATES; it does not judge
+        # whether they actually answer the question — that's grade()'s job.
         chunks = vector_store.similarity_search(state["query"], k=RETRIEVE_K)
         print(f"  [retrieve] query={state['query']!r} -> {len(chunks)} chunk(s)", file=sys.stderr)
         return {"chunks": chunks}
@@ -142,10 +264,13 @@ def make_grade_node(llm: ChatOllama):
         graded_relevant = []
         for chunk in state["chunks"]:
             verdict = llm.invoke(
-                f"Question: {state['original_query']}\n\n"
                 f"Retrieved text:\n{chunk.page_content}\n\n"
-                "Does this text contain information that helps answer the "
-                "question? Reply with exactly one word: yes or no."
+                f"Question: {state['original_query']}\n\n"
+                "Is the retrieved text relevant to answering this question? "
+                "Answer yes if the text discusses the same topic, characters, or events "
+                "as the question, even if it doesn't state the answer outright. "
+                "Answer no only if the text is about something unrelated. "
+                "Reply with exactly one word: yes or no."
             )
             is_relevant = "yes" in verdict.content.strip().lower()
             print(
@@ -179,7 +304,7 @@ def make_rewrite_node(llm: ChatOllama):
         rewritten = llm.invoke(
             f"Original question: {state['original_query']}\n\n"
             "Rewrite this as a different, more specific search query that "
-            "might match a company filing or earnings report. Reply with "
+            "might match a passage from a folktale or story. Reply with "
             "ONLY the rewritten query, nothing else."
         )
         new_query = rewritten.content.strip()
@@ -198,7 +323,7 @@ def make_generate_node(llm: ChatOllama):
             f"Context:\n{context}\n\n"
             f"Question: {state['original_query']}\n\n"
             "Answer using ONLY the context above. Cite the source file "
-            "in brackets, e.g. [annual_report_fy2025.txt]."
+            "in brackets, e.g. [monkey_and_crocodile_part1.txt]."
         )
         return {"answer": response.content}
 
@@ -241,9 +366,9 @@ def build_graph(vector_store: Chroma, llm: ChatOllama):
     return graph.compile()
 
 
-def run_agent(question: str) -> str:
+def run_agent(question: str, rebuild: bool = False) -> str:
     print(f"  [model] local via Ollama: {LOCAL_MODEL} (chat), {EMBEDDING_MODEL} (embeddings)", file=sys.stderr)
-    vector_store = _build_vector_store()
+    vector_store = _build_vector_store(rebuild=rebuild)
     llm = _build_llm()
     app = build_graph(vector_store, llm)
 
@@ -259,5 +384,9 @@ def run_agent(question: str) -> str:
 
 
 if __name__ == "__main__":
-    task = " ".join(sys.argv[1:]) or "What was Northwind Traders' revenue in fiscal 2025?"
-    print(run_agent(task))
+    argv = sys.argv[1:]
+    rebuild = "--rebuild" in argv
+    if rebuild:
+        argv = [a for a in argv if a != "--rebuild"]
+    task = " ".join(argv) or "Why did the monkey refuse to give the crocodile his heart?"
+    print(run_agent(task, rebuild=rebuild))

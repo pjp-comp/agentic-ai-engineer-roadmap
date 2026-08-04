@@ -32,6 +32,8 @@ def judge(expected: str, actual: str) -> JudgeVerdict:
     )
 ```
 
+**Runnable version:** [`examples/stage10-eval-harness/`](../examples/stage10-eval-harness/) builds this exact `JudgeVerdict` shape against a 10-case golden dataset, using **two different local models** — one under test, one judging — so the pass rate isn't inflated by a model grading its own answers. Includes a `--baseline` flag for CI use. Runs entirely on Ollama.
+
 ## Sources
 
 | Type | Resource |

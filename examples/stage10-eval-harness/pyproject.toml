@@ -1,0 +1,13 @@
+[project]
+name = "eval-harness"
+version = "0.1.0"
+description = "Stage 10's golden-dataset + LLM-as-judge brief -- a 10-case dataset, a structured Pydantic JudgeVerdict, a headline pass-rate metric, and a --baseline flag for CI use. Two separate local models: one under test, one judging. Ollama only."
+requires-python = ">=3.10"
+dependencies = [
+    "ollama>=0.4.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

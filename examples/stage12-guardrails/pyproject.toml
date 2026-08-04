@@ -1,0 +1,12 @@
+[project]
+name = "guardrails"
+version = "0.1.0"
+description = "Stage 12's guardrail brief -- prompt-injection detection in tool output, a per-role tool allowlist enforced in code, and a genuinely sandboxed subprocess for code execution. Ollama only."
+requires-python = ">=3.10"
+dependencies = [
+    "ollama>=0.4.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

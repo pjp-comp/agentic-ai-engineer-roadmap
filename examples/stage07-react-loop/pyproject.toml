@@ -1,0 +1,12 @@
+[project]
+name = "react-loop"
+version = "0.1.0"
+description = "Stage 7's ReAct loop brief as raw Ollama calls -- max-iteration cap, a Reflexion-style stagnation check, and graceful degradation. No framework, no LangGraph. Ollama only."
+requires-python = ">=3.10"
+dependencies = [
+    "ollama>=0.4.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

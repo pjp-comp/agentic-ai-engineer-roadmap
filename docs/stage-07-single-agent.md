@@ -63,6 +63,8 @@ return degrade_gracefully(state)  # partial answer, not a crash
 | Blog | [Databricks — What is an AI Agent Harness?](https://www.databricks.com/blog/ai-harness) |
 | Book | Michael Yuan — *AI Agents in Action*, 2nd ed. (Manning) — source for Tree-of-Thought and the cognitive-architecture (perception/planning/execution/evaluation/attention) framing below; [repo with runnable examples](https://github.com/cxbxmxcx/AI-Agent-Workflows) |
 
+**Runnable version:** [`examples/stage07-react-loop/`](../examples/stage07-react-loop/) builds this exact loop — max-iteration cap, the Reflexion-style stagnation check, forced reflection, graceful degradation — as raw Ollama calls, no framework. Includes a deliberately unreliable tool (fails once, then succeeds) so the stagnation check and the step-limit path both actually trigger, not just the happy path. Runs entirely on Ollama.
+
 ## Done when
 
 Your agent never runs forever, never crashes on a bad tool result, and returns something useful even when it can't fully solve the task.

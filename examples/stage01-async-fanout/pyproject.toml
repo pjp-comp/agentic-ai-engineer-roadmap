@@ -1,0 +1,12 @@
+[project]
+name = "async-fanout"
+version = "0.1.0"
+description = "Stage 1's async fan-out brief -- FastAPI endpoint calling three mock tool coroutines concurrently via asyncio.gather, per-call timeout, partial-failure handling, and a circuit breaker. No LLM -- this stage is entirely async plumbing."
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+]
+
+[tool.uv]
+package = false

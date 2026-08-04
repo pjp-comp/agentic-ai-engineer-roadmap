@@ -31,6 +31,8 @@ async def query(req: QueryRequest):
 
 Extend it: add a circuit breaker so a tool that's failed 3× in a row gets skipped for 30s.
 
+**Runnable version:** [`examples/stage01-async-fanout/`](../examples/stage01-async-fanout/) builds this exact endpoint — three mock tools with different failure modes (slow, error-prone, reliable), the timeout wrapper, and the circuit-breaker extension. No LLM — this stage is entirely async plumbing.
+
 ## Sources
 
 | Type | Resource |
