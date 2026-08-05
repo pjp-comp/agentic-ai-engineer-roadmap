@@ -11,3 +11,4 @@ venv/
 .chroma_crag/
 .sessions.db
 .approvals.db
+.traces.jsonl
