@@ -1,0 +1,17 @@
+[project]
+name = "multimodal-rag-agent"
+version = "0.1.0"
+description = "Agentic, multimodal RAG over a real PDF (text + tables + images) using multi-vector retrieval (element-aware parsing, per-element summaries embedded for search, raw content preserved for generation) as a LangGraph corrective-RAG graph, with persistent Session/Event tracking across turns. Ollama only, including a local vision model for image understanding."
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.2.0",
+    "langchain-core>=0.3.0",
+    "langchain-ollama>=0.2.0",
+    "langchain-chroma>=0.2.0",
+    "ollama>=0.4.0",
+    "pymupdf>=1.24.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

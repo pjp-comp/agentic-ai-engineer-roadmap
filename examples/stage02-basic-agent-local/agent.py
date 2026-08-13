@@ -30,6 +30,7 @@ import ast
 import operator
 import os
 import sys
+from pprint import pformat
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -130,6 +131,7 @@ def run_agent(user_task: str) -> str:
         {"messages": [{"role": "user", "content": user_task}]},
         config={"recursion_limit": MAX_ITERATIONS * 2},
     )
+    print(pformat(result))
     final = result["messages"][-1]
     return final.content or "(no text response)"
 

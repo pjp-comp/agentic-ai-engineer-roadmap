@@ -9,6 +9,8 @@ venv/
 .long_term_facts.json
 .chroma_facts/
 .chroma_crag/
+.chroma_multimodal/
 .sessions.db
+.sessions/
 .approvals.db
 .traces.jsonl

@@ -1,0 +1,12 @@
+[project]
+name = "sessions-plain"
+version = "0.1.0"
+description = "Stage 6's Session/Event/SessionService brief, built exactly as the doc describes it -- no LangGraph, no framework. A persistent (JSON-on-disk) session service standing in for the doc's in-memory one, so --history/--list work as genuinely separate process runs. Ollama only."
+requires-python = ">=3.10"
+dependencies = [
+    "ollama>=0.4.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false
