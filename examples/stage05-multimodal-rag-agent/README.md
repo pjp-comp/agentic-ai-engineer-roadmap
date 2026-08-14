@@ -16,7 +16,7 @@ Two source PDFs ship with this example, both indexable into **one shared store**
 | Model | Job |
 |---|---|
 | `llama3.1:8b` | Answer generation, relevance grading, table summarization |
-| `llava:7b` | **Vision model** — describes what a chart image actually depicts. This is the one step nothing else in this pipeline can substitute for: no text model can look at image bytes. |
+| `qwen2.5vl:7b` | **Vision model** — describes what a chart image actually depicts. This is the one step nothing else in this pipeline can substitute for: no text model can look at image bytes. (This example originally used `llava:7b` here — see "Real bugs this surfaced" below for why it was swapped.) |
 | `nomic-embed-text` | Turns text into vectors for retrieval |
 
 ## One shared index, not one per PDF
@@ -36,7 +36,7 @@ Take the question `"How much did battery storage cost decline?"` and trace exact
 **Indexing time (`build_index.py`, already done before you ever ask a question):**
 
 1. `ingest.parse_pdf(sample_complex.pdf)` opens the PDF with pymupdf and walks every page. For each page it: (a) calls `page.find_tables()` to find real tables, extracting each as structured rows/columns; (b) calls `page.get_images(full=True)` to find embedded images, and for each one large enough to matter, captures the raw bytes **plus a narrow window of nearby text** (see "Caption grounding" below); (c) extracts every remaining text block via `page.get_text("blocks")`, explicitly excluding any block whose bounding box overlaps a detected table (so table rows never get double-counted as garbled prose — see bug #1 below). Every piece becomes an `Element` with a `kind` (`text`/`table`/`image`), a `page`, a `source` (the PDF's filename), and a unique `element_id` like `sample_complex.pdf::image-15`.
-2. `index.summarize_elements()` turns each `Element` into something embeddable. Text elements pass through untouched. Table elements go to `llama3.1:8b` with the prompt "summarize what this table shows, mention headers and notable values." Image elements go to `llava:7b` (the vision model) with the image bytes AND the nearby text, asking for a 2-3 sentence description.
+2. `index.summarize_elements()` turns each `Element` into something embeddable. Text elements pass through untouched. Table elements go to `llama3.1:8b` with the prompt "summarize what this table shows, mention headers and notable values." Image elements go to `qwen2.5vl:7b` (the vision model) with the image bytes AND the nearby text, asking for every category/data point with its exact value.
 3. `index.build_multi_vector_index()` embeds every summary (not the raw content) with `nomic-embed-text` into the shared Chroma collection at `.chroma_multimodal/`, and writes the **raw** content (the full table grid, or the image's generated description) into `docstore.json`, keyed by `element_id`.
 
 **Query time (`agent.py`, this happens on every question):**
@@ -49,13 +49,13 @@ Take the question `"How much did battery storage cost decline?"` and trace exact
 
 The key thing to notice: steps 4-5 (retrieve, grade) operate on **summaries** — short, question-shaped text. Step 7 (generate) operates on **raw content** — the actual table or the image's full description. These are deliberately different pieces of text for the same element; see the next section for why.
 
-## Caption grounding — how images get described accurately (and where it still fails)
+## Caption grounding — how images get described accurately
 
-A vision model summarizing a chart from pixels alone is prone to hallucination — inventing numbers, category names, or trends that aren't actually in the image. This example mitigates that (but does not fully solve it — see "Known limitations" below) with **caption grounding**: every image `Element` carries a `caption` field, populated in `ingest.py` by taking the image's own bounding box (`page.get_image_rects()`) and collecting only the text blocks within a tight vertical window (`CAPTION_WINDOW_PT = 80` points, roughly one paragraph) above and below it — not the whole page's text.
+A vision model summarizing a chart from pixels alone is prone to hallucination — inventing numbers, category names, or trends that aren't actually in the image. This example defends against that with **caption grounding**: every image `Element` carries a `caption` field, populated in `ingest.py` by taking the image's own bounding box (`page.get_image_rects()`) and collecting only the text blocks within a tight vertical window (`CAPTION_WINDOW_PT = 80` points, roughly one paragraph) above and below it — not the whole page's text.
 
-That distinction matters concretely: an early version of this fix used the *entire page's* text as context. On `sample_complex.pdf` page 4, which has both a workforce chart AND an unrelated investment table below it, that caused `llava:7b` to pull numbers from the investment table (`231`, `112`, `84`...) and misattribute them as the chart's own category values — a worse failure than having no caption at all. Narrowing to a tight window around the image's own position on the page fixed that specific failure mode.
+That narrow window matters concretely: an early version of this fix used the *entire page's* text as context. On `sample_complex.pdf` page 4, which has both a workforce chart AND an unrelated investment table below it, that caused the vision model in use at the time to pull numbers from the investment table (`231`, `112`, `84`...) and misattribute them as the chart's own category values — a worse failure than having no caption at all. Narrowing to a tight window around the image's own position on the page fixed that specific failure mode.
 
-`index.py`'s `_summarize_image()` then passes this narrow caption to the vision model alongside the image bytes, with an explicit instruction: *if the text states a specific number, trust the text over your own reading of the image* — because a real PDF's prose usually states a chart's headline figure in words right next to it ("Installation added 680,000 jobs..."), and reading that sentence is far more reliable than reading a bar's height from pixels.
+`index.py`'s `_summarize_image()` passes this narrow caption to the vision model alongside the image bytes, so a chart's headline figure stated in words nearby ("Installation added 680,000 jobs...") can corroborate the model's own reading of the chart. Caption grounding is a real, independent improvement — but as "Real bugs this surfaced" below covers, it was not sufficient on its own to fix accurate reading of *every* bar's value; the model itself mattered more.
 
 ## Why "multi-vector retrieval" — the actual technique, not just a name
 
@@ -73,7 +73,7 @@ ingest.py:  PDF -> Elements (text block | table | image), each tagged with
 index.py:   for each Element:
               text  -> use directly, no model call
               table -> llama3.1:8b writes a 2-3 sentence summary of what it shows
-              image -> llava:7b (VISION model) writes a 2-3 sentence description
+              image -> qwen2.5vl:7b (VISION model) describes every category/value
             embed the SUMMARY -> the SHARED Chroma collection (.chroma_multimodal/)
             merge the RAW content (full table, or the image's own description)
               into the SHARED docstore.json, linked by (namespaced) element_id
@@ -117,7 +117,7 @@ Three ways to continue a session:
 ```bash
 cd examples/stage05-multimodal-rag-agent
 ollama pull llama3.1:8b        # one-time, ~4.9GB
-ollama pull llava:7b            # one-time, ~4.7GB, vision model
+ollama pull qwen2.5vl:7b        # one-time, ~6GB, vision model
 ollama pull nomic-embed-text    # one-time, ~274MB, shared with other examples
 uv run build_index.py                          # index sample.pdf into the shared store
 uv run build_index.py --pdf sample_complex.pdf  # ADD the complex doc alongside it
@@ -195,17 +195,23 @@ Force the refusal path with a question neither document covers:
 uv run agent.py "What is the capital of France?"
 ```
 
-A more instructive refusal — a question whose answer genuinely exists in the document, but only inside a chart image the vision model can't read reliably:
+Ask a question whose answer exists ONLY inside a chart image — no supporting sentence anywhere in the surrounding text states this specific number, so this is a genuine test of whether the vision model can actually read the chart, not just corroborate a caption:
 
 ```bash
-uv run agent.py "How many jobs added in 2024 in manufacturing sector?"
+uv run agent.py "How many jobs added in manufacturing sector?"
 ```
 
-This retries once with a rewritten query, still finds nothing it's confident about, and refuses — the correct, honest behavior for information the pipeline can't reliably extract, rather than confidently guessing wrong. See "Known limitations" below for the full investigation into why.
+```
+  [grade] sample_complex.pdf::image-24 (image, p4): relevant
+
+Approximately 420 thousand jobs were added in the manufacturing sector. (sample_complex.pdf, image of page 4)
+```
+
+This is the exact question that motivated the vision-model swap documented in "Real bugs this surfaced" below — worth running to see the fix working, not just reading about it.
 
 ## Real bugs this surfaced, and the actual fixes
 
-Four genuine failures came up during development, all fixed (or, for #4, honestly documented rather than papered over) in the code:
+Four genuine failures came up during development, all fixed in the code:
 
 **1. Table text was being extracted twice.** The first version of `ingest.py`'s text/table separation used a length heuristic (drop any text "paragraph" shorter than 40 characters, on the theory that table rows are short). This silently failed: pymupdf's plain text extraction returns each table row as its own line, and real rows like `"Northern Europe   58.2%   64.7%   +6.5 pp"` are *longer* than 40 characters, so they passed the filter and got embedded a second time as garbled text elements alongside the properly-extracted table element. The fix: extract text as **blocks with real bounding boxes**, and drop any block whose bbox geometrically intersects a detected table's bbox — geometry, not a length guess, is what correctly separates "this text is the table" from "this text is a normal paragraph." See `ingest.py`'s `parse_pdf()`.
 
@@ -213,22 +219,15 @@ Four genuine failures came up during development, all fixed (or, for #4, honestl
 
 **3. First version indexed each PDF into its own isolated directory.** Adding a second PDF meant a second, disconnected `.chroma_multimodal_<name>/` store, and querying required knowing in advance which one to open — the opposite of "just add more PDFs." Fixed by moving to one shared collection with a `source` field on every element (see "One shared index, not one per PDF" above) — the same fix that makes `--source` filtering possible at all.
 
-**4. Asking about a specific bar's value on a 5-category workforce chart returned a confused refusal instead of an answer** ("how many jobs added in 2024 in manufacturing sector?") — traced all the way down to `llava:7b` inventing category names and values wholesale when describing that chart. See "Known limitations" below for the full investigation and why this is a genuine model-capability ceiling, not a bug fixable by more prompt tuning.
+**4. The vision model (originally `llava:7b`) could not reliably read a multi-bar chart's individual values — fixed by swapping the model, not by more prompt tuning.** Asking "how many jobs added in manufacturing sector?" against `sample_complex.pdf`'s 5-category workforce chart returned a refusal, traced down to the vision-model summary itself being wrong. The investigation, in order:
 
-## Known limitations — the vision model can't reliably read a multi-bar chart
+  1. The chart is completely legible to a human — a simple horizontal bar chart, 5 clearly labeled bars.
+  2. `llava:7b`'s summary of the full chart invented a multi-year trend narrative on what is actually single-year data, wrong/merged category names, and a fabricated "200,000 jobs" total figure appearing nowhere in the real data. This is what motivated the caption-grounding fix described above.
+  3. Even asked the simplest possible isolated question — *"list only the category names on the vertical axis, top to bottom, nothing else"* — `llava:7b` returned a 16-item list mixing 4-5 real category names with a dozen fabricated ones, which ruled out "the summarization prompt is too complex" as the explanation.
+  4. Tightening the prompt to explicitly demand every category and value made fabrication measurably **worse** on `llava:7b`, not better — more invented content to satisfy the completeness requirement, not more accurate reading.
+  5. Swapping `VISION_MODEL` to `qwen2.5vl:7b` (no other code change) and re-running the exact same isolated test — *"list only the category names and values"* — returned all 5 real categories with all 5 correct values on the first try. Rebuilding the index with the new model and re-running the original failing question now correctly answers "Approximately 420 thousand jobs."
 
-This is worth stating plainly rather than only discovering by hitting it: **`llava:7b` (a 7B-parameter local vision model) is not reliable at reading discrete values off a chart with several categories.** This was found while investigating why "how many jobs added in 2024 in manufacturing sector?" against `sample_complex.pdf`'s workforce chart (5 categories: Manufacturing, Installation, R&D, Grid Operations, Policy/Admin) returned a refusal instead of an answer.
-
-The investigation, in order:
-
-1. The chart image itself is completely legible to a human — a simple horizontal bar chart, 5 bars, clearly labeled.
-2. `llava:7b`'s summary of the full chart invented a multi-year trend narrative on what is actually single-year data, wrong/merged category names, and a fabricated "200,000 jobs" total figure that appears nowhere in the real data. This was the caption-grounding fix's original motivation.
-3. Even asked the simplest possible isolated question — *"list only the category names on the vertical axis, top to bottom, nothing else"* — `llava:7b` returned a 16-item list mixing 4-5 real category names with a dozen fabricated ones. This ruled out "the summarization prompt is too complex" as the explanation.
-4. Tightening the summarization prompt to explicitly demand every category and value made fabrication measurably **worse**, not better — the model invented more content to satisfy the completeness requirement rather than admitting uncertainty about categories it couldn't actually read.
-
-What genuinely helps (kept in the final code): grounding on nearby caption text lets the model correctly report a number when the surrounding prose *states it in words* (e.g. "Installation added 680,000 jobs" is now reliably picked up, because that's reading a sentence, not a bar's height). What doesn't help: asking the model to read a specific bar's height directly, when that number exists **only inside the image** and nowhere in the surrounding text — Manufacturing's 420 (thousand jobs) is exactly this case, since the caption text only ever mentions Manufacturing in passing, comparing it unfavorably to Installation, never stating its own value.
-
-**Practical consequence:** a question whose answer is a *minor* bar's specific value, stated only inside a chart image, may correctly refuse rather than answer — which is the honest outcome (refusing is correct behavior for information the pipeline genuinely can't extract), but is a real gap versus what a human reading the same PDF could tell you at a glance. The actual fix isn't more prompt engineering against this model's ceiling — it's a stronger vision model (`qwen2.5vl:7b` or `llama3.2-vision:11b` are worth trying as drop-in replacements for `VISION_MODEL` in `index.py`, both reportedly stronger at reading structured chart/table content than `llava`), or a table-extraction-style approach for charts specifically (e.g. asking the model for OCR'd axis tick values rather than a holistic description). Neither is implemented here — this is a documented, known boundary of what this example's pipeline can do, not a silently swallowed failure.
+  The lesson: this was a genuine model-capability gap (structured chart/plot reading), not a prompting problem — no amount of instruction tuning fixed it on the weaker model, and almost none was needed once the model itself was strong enough. Caption grounding (kept regardless of vision model) is still a real, independent improvement for numbers that are *also* stated in nearby text; it was just never going to be sufficient on its own for a number that exists only inside the image.
 
 ## What to look at closely
 
@@ -236,7 +235,8 @@ What genuinely helps (kept in the final code): grounding on nearby caption text 
 - **`generate()` explicitly uses `c["raw"]`, never `c["summary"]`** — this is the entire point of the multi-vector split made concrete in code: the vector that got matched during search is deliberately a different string from what gets shown to the answer-writing model.
 - **`retrieve()`'s `source_filter` becomes a Chroma metadata `filter={"source": ...}`** — this is a real, structural narrowing of the search space, not a post-hoc filter applied to results after the fact; Chroma only considers vectors matching that filter in the first place.
 - **Small images get filtered out during ingestion** (`ingest.py`, `len(image_bytes) < 5000`) — page decorations, bullet icons, and logos aren't worth a vision-model call and would only add retrieval noise. A genuinely important but small diagram could theoretically get skipped by this threshold, worth knowing if you point this at your own PDF.
-- **Caption text is windowed by vertical position, not by paragraph count** (`ingest.py`'s `CAPTION_WINDOW_PT = 80`) — a fixed distance in PDF points rather than "the paragraph before and after," which is simpler but means a very short paragraph right next to the image and a very long one just outside the window get treated inconsistently. See "Known limitations" above for why this exists and what it does and doesn't fix.
+- **Caption text is windowed by vertical position, not by paragraph count** (`ingest.py`'s `CAPTION_WINDOW_PT = 80`) — a fixed distance in PDF points rather than "the paragraph before and after," which is simpler but means a very short paragraph right next to the image and a very long one just outside the window get treated inconsistently.
+- **`VISION_MODEL` is a one-line swap in `index.py`, and it's the single highest-leverage lever in this whole pipeline for image-heavy documents** — see bug #4 above for the concrete before/after. If you point this at your own PDF and a chart-based answer looks wrong, trying a different `VISION_MODEL` before touching any prompt is the first thing worth doing.
 - **`--chat` and `--resume` share `_answer_turn()` and `_load_session()`** rather than duplicating turn logic — resuming a session isn't a special code path, it's the same turn function applied to whichever `Session` object got loaded, same principle as [`stage06-sessions-plain`](../stage06-sessions-plain/)'s `run_session()`.
 
 ## Where this goes next

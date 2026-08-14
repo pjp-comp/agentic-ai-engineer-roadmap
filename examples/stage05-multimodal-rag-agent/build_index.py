@@ -31,7 +31,7 @@ the full mechanics of each step):
        - text elements: used as-is, no model call
        - table elements: llama3.1:8b generates a 2-3 sentence summary of
          what the table shows
-       - image elements: llava:7b (a VISION model) generates a 2-3
+       - image elements: qwen2.5vl:7b (a VISION model) generates a 2-3
          sentence description of what the image depicts -- this is the
          one step that requires a vision-capable model; no text model
          can look at image bytes
@@ -54,7 +54,7 @@ same store:
 
 Usage:
     ollama pull llama3.1:8b        # one-time, ~4.9GB
-    ollama pull llava:7b            # one-time, ~4.7GB, vision model
+    ollama pull qwen2.5vl:7b        # one-time, ~6GB, vision model
     ollama pull nomic-embed-text    # one-time, ~274MB
     uv run build_index.py                           # indexes sample.pdf into the shared store
     uv run build_index.py --pdf sample_complex.pdf   # ADDS the complex doc alongside it
