@@ -29,6 +29,34 @@ What makes this safe:
 - Every element carries a **`source` field** in its Chroma metadata — retrieval can search across every indexed PDF at once (the default) or be narrowed to one document with `--source <filename>`.
 - `build_index.py` **merges** into the existing docstore rather than overwriting it — indexing a second PDF never touches the first one's entries. `--force` is the explicit escape hatch when you actually want to wipe everything and start clean.
 
+## How it works, step by step — following one real question through the pipeline
+
+Take the question `"How much did battery storage cost decline?"` and trace exactly what happens, function by function:
+
+**Indexing time (`build_index.py`, already done before you ever ask a question):**
+
+1. `ingest.parse_pdf(sample_complex.pdf)` opens the PDF with pymupdf and walks every page. For each page it: (a) calls `page.find_tables()` to find real tables, extracting each as structured rows/columns; (b) calls `page.get_images(full=True)` to find embedded images, and for each one large enough to matter, captures the raw bytes **plus a narrow window of nearby text** (see "Caption grounding" below); (c) extracts every remaining text block via `page.get_text("blocks")`, explicitly excluding any block whose bounding box overlaps a detected table (so table rows never get double-counted as garbled prose — see bug #1 below). Every piece becomes an `Element` with a `kind` (`text`/`table`/`image`), a `page`, a `source` (the PDF's filename), and a unique `element_id` like `sample_complex.pdf::image-15`.
+2. `index.summarize_elements()` turns each `Element` into something embeddable. Text elements pass through untouched. Table elements go to `llama3.1:8b` with the prompt "summarize what this table shows, mention headers and notable values." Image elements go to `llava:7b` (the vision model) with the image bytes AND the nearby text, asking for a 2-3 sentence description.
+3. `index.build_multi_vector_index()` embeds every summary (not the raw content) with `nomic-embed-text` into the shared Chroma collection at `.chroma_multimodal/`, and writes the **raw** content (the full table grid, or the image's generated description) into `docstore.json`, keyed by `element_id`.
+
+**Query time (`agent.py`, this happens on every question):**
+
+4. `retrieve()` embeds your question with the same `nomic-embed-text` model, and asks Chroma for the 4 nearest summary-vectors. For this question, the summary of `sample_complex.pdf::text-19` (a paragraph stating "Storage cost declined from $280/kWh in 2019 to $98/kWh in 2024...") lands close to the question's vector, because both are about the same concept even though the wording differs.
+5. `grade()` takes each of those 4 candidates and asks `llama3.1:8b`, one at a time: "is this actually useful for answering the question, not just topically adjacent?" Only candidates that pass keep going — and *only for those*, `grade()` looks up their `raw` content in the docstore and attaches it to the result. (Candidates that fail grading never have their raw content fetched at all — no wasted work.)
+6. If nothing passed grading, `rewrite_query()` asks the model to rephrase the question and `retrieve()`+`grade()` run again once (`MAX_RETRIES = 1`). If still nothing, `refuse()` returns a plain "I don't have enough information" — no LLM call, because there's nothing to reason over.
+7. If something passed, `generate()` builds the final prompt from the **raw** content of every graded-relevant element (not the summaries that were searched), asks `llama3.1:8b` to answer using only that context, and instructs it to cite `(source, page)`.
+8. The whole exchange — your question, the answer, both as `Event`s — gets written into a `Session` (`session.py`) and flushed to disk via `PersistentSessionService.save()`, so `--history`/`--chat` can pick it back up later.
+
+The key thing to notice: steps 4-5 (retrieve, grade) operate on **summaries** — short, question-shaped text. Step 7 (generate) operates on **raw content** — the actual table or the image's full description. These are deliberately different pieces of text for the same element; see the next section for why.
+
+## Caption grounding — how images get described accurately (and where it still fails)
+
+A vision model summarizing a chart from pixels alone is prone to hallucination — inventing numbers, category names, or trends that aren't actually in the image. This example mitigates that (but does not fully solve it — see "Known limitations" below) with **caption grounding**: every image `Element` carries a `caption` field, populated in `ingest.py` by taking the image's own bounding box (`page.get_image_rects()`) and collecting only the text blocks within a tight vertical window (`CAPTION_WINDOW_PT = 80` points, roughly one paragraph) above and below it — not the whole page's text.
+
+That distinction matters concretely: an early version of this fix used the *entire page's* text as context. On `sample_complex.pdf` page 4, which has both a workforce chart AND an unrelated investment table below it, that caused `llava:7b` to pull numbers from the investment table (`231`, `112`, `84`...) and misattribute them as the chart's own category values — a worse failure than having no caption at all. Narrowing to a tight window around the image's own position on the page fixed that specific failure mode.
+
+`index.py`'s `_summarize_image()` then passes this narrow caption to the vision model alongside the image bytes, with an explicit instruction: *if the text states a specific number, trust the text over your own reading of the image* — because a real PDF's prose usually states a chart's headline figure in words right next to it ("Installation added 680,000 jobs..."), and reading that sentence is far more reliable than reading a bar's height from pixels.
+
 ## Why "multi-vector retrieval" — the actual technique, not just a name
 
 A naive RAG pipeline extracts a PDF's text into one blob and embeds chunks of it. That breaks down for two of these documents' three element types:
@@ -167,9 +195,17 @@ Force the refusal path with a question neither document covers:
 uv run agent.py "What is the capital of France?"
 ```
 
+A more instructive refusal — a question whose answer genuinely exists in the document, but only inside a chart image the vision model can't read reliably:
+
+```bash
+uv run agent.py "How many jobs added in 2024 in manufacturing sector?"
+```
+
+This retries once with a rewritten query, still finds nothing it's confident about, and refuses — the correct, honest behavior for information the pipeline can't reliably extract, rather than confidently guessing wrong. See "Known limitations" below for the full investigation into why.
+
 ## Real bugs this surfaced, and the actual fixes
 
-Three genuine failures came up during development, all fixed in the code, all worth knowing about because they generalize past this one example:
+Four genuine failures came up during development, all fixed (or, for #4, honestly documented rather than papered over) in the code:
 
 **1. Table text was being extracted twice.** The first version of `ingest.py`'s text/table separation used a length heuristic (drop any text "paragraph" shorter than 40 characters, on the theory that table rows are short). This silently failed: pymupdf's plain text extraction returns each table row as its own line, and real rows like `"Northern Europe   58.2%   64.7%   +6.5 pp"` are *longer* than 40 characters, so they passed the filter and got embedded a second time as garbled text elements alongside the properly-extracted table element. The fix: extract text as **blocks with real bounding boxes**, and drop any block whose bbox geometrically intersects a detected table's bbox — geometry, not a length guess, is what correctly separates "this text is the table" from "this text is a normal paragraph." See `ingest.py`'s `parse_pdf()`.
 
@@ -177,13 +213,30 @@ Three genuine failures came up during development, all fixed in the code, all wo
 
 **3. First version indexed each PDF into its own isolated directory.** Adding a second PDF meant a second, disconnected `.chroma_multimodal_<name>/` store, and querying required knowing in advance which one to open — the opposite of "just add more PDFs." Fixed by moving to one shared collection with a `source` field on every element (see "One shared index, not one per PDF" above) — the same fix that makes `--source` filtering possible at all.
 
+**4. Asking about a specific bar's value on a 5-category workforce chart returned a confused refusal instead of an answer** ("how many jobs added in 2024 in manufacturing sector?") — traced all the way down to `llava:7b` inventing category names and values wholesale when describing that chart. See "Known limitations" below for the full investigation and why this is a genuine model-capability ceiling, not a bug fixable by more prompt tuning.
+
+## Known limitations — the vision model can't reliably read a multi-bar chart
+
+This is worth stating plainly rather than only discovering by hitting it: **`llava:7b` (a 7B-parameter local vision model) is not reliable at reading discrete values off a chart with several categories.** This was found while investigating why "how many jobs added in 2024 in manufacturing sector?" against `sample_complex.pdf`'s workforce chart (5 categories: Manufacturing, Installation, R&D, Grid Operations, Policy/Admin) returned a refusal instead of an answer.
+
+The investigation, in order:
+
+1. The chart image itself is completely legible to a human — a simple horizontal bar chart, 5 bars, clearly labeled.
+2. `llava:7b`'s summary of the full chart invented a multi-year trend narrative on what is actually single-year data, wrong/merged category names, and a fabricated "200,000 jobs" total figure that appears nowhere in the real data. This was the caption-grounding fix's original motivation.
+3. Even asked the simplest possible isolated question — *"list only the category names on the vertical axis, top to bottom, nothing else"* — `llava:7b` returned a 16-item list mixing 4-5 real category names with a dozen fabricated ones. This ruled out "the summarization prompt is too complex" as the explanation.
+4. Tightening the summarization prompt to explicitly demand every category and value made fabrication measurably **worse**, not better — the model invented more content to satisfy the completeness requirement rather than admitting uncertainty about categories it couldn't actually read.
+
+What genuinely helps (kept in the final code): grounding on nearby caption text lets the model correctly report a number when the surrounding prose *states it in words* (e.g. "Installation added 680,000 jobs" is now reliably picked up, because that's reading a sentence, not a bar's height). What doesn't help: asking the model to read a specific bar's height directly, when that number exists **only inside the image** and nowhere in the surrounding text — Manufacturing's 420 (thousand jobs) is exactly this case, since the caption text only ever mentions Manufacturing in passing, comparing it unfavorably to Installation, never stating its own value.
+
+**Practical consequence:** a question whose answer is a *minor* bar's specific value, stated only inside a chart image, may correctly refuse rather than answer — which is the honest outcome (refusing is correct behavior for information the pipeline genuinely can't extract), but is a real gap versus what a human reading the same PDF could tell you at a glance. The actual fix isn't more prompt engineering against this model's ceiling — it's a stronger vision model (`qwen2.5vl:7b` or `llama3.2-vision:11b` are worth trying as drop-in replacements for `VISION_MODEL` in `index.py`, both reportedly stronger at reading structured chart/table content than `llava`), or a table-extraction-style approach for charts specifically (e.g. asking the model for OCR'd axis tick values rather than a holistic description). Neither is implemented here — this is a documented, known boundary of what this example's pipeline can do, not a silently swallowed failure.
+
 ## What to look at closely
 
 - **`grade()` grades the SUMMARY, not the raw content** — cheap and fast, since pulling full raw content (a whole table, or re-describing an image) for every one of the k candidates, most of which won't pass grading anyway, would be wasted work. Only elements that pass get their raw content attached, in `grade()`'s final step.
 - **`generate()` explicitly uses `c["raw"]`, never `c["summary"]`** — this is the entire point of the multi-vector split made concrete in code: the vector that got matched during search is deliberately a different string from what gets shown to the answer-writing model.
 - **`retrieve()`'s `source_filter` becomes a Chroma metadata `filter={"source": ...}`** — this is a real, structural narrowing of the search space, not a post-hoc filter applied to results after the fact; Chroma only considers vectors matching that filter in the first place.
 - **Small images get filtered out during ingestion** (`ingest.py`, `len(image_bytes) < 5000`) — page decorations, bullet icons, and logos aren't worth a vision-model call and would only add retrieval noise. A genuinely important but small diagram could theoretically get skipped by this threshold, worth knowing if you point this at your own PDF.
-- **The vision model isn't perfect, and that's shown honestly, not hidden** — `llava:7b`'s chart descriptions occasionally get exact details (years, axis labels) slightly imprecise while correctly identifying the overall trend. The pipeline doesn't correct or verify this description against ground truth; it's trusted as-is, the same way any RAG system trusts its summarization step.
+- **Caption text is windowed by vertical position, not by paragraph count** (`ingest.py`'s `CAPTION_WINDOW_PT = 80`) — a fixed distance in PDF points rather than "the paragraph before and after," which is simpler but means a very short paragraph right next to the image and a very long one just outside the window get treated inconsistently. See "Known limitations" above for why this exists and what it does and doesn't fix.
 - **`--chat` and `--resume` share `_answer_turn()` and `_load_session()`** rather than duplicating turn logic — resuming a session isn't a special code path, it's the same turn function applied to whichever `Session` object got loaded, same principle as [`stage06-sessions-plain`](../stage06-sessions-plain/)'s `run_session()`.
 
 ## Where this goes next

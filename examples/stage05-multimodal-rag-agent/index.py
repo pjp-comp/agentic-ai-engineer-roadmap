@@ -51,7 +51,7 @@ from langchain_ollama import OllamaEmbeddings
 from ingest import Element
 
 LOCAL_MODEL = "llama3.1:8b"
-VISION_MODEL = "llava:7b"
+VISION_MODEL = "qwen2.5vl:7b"
 EMBEDDING_MODEL = "nomic-embed-text"
 
 
@@ -75,16 +75,48 @@ def _summarize_table(chat_model: str, element: Element) -> str:
 def _summarize_image(vision_model: str, element: Element) -> str:
     """The one step in this whole pipeline that REQUIRES a vision-capable
     model -- no text model can do this, because the input isn't text.
+
+    VISION_MODEL history, kept here because it's a real, verified finding
+    about model choice mattering, not just a config value: this pipeline
+    originally used llava:7b, which was NOT reliable at reading discrete
+    values off a multi-bar/multi-category chart -- asked plainly to just
+    list a 5-category bar chart's axis labels top to bottom, it invented a
+    16-item list mixing real and fabricated category names, and tightening
+    the prompt to demand every value made fabrication WORSE (more
+    confident invention to fill out the list). Swapping to qwen2.5vl:7b
+    fixed this outright -- the same isolated "list categories and values"
+    test that broke llava returned all 5 real categories with all 5 real
+    values, correctly, on the first try. This was a genuine model-capability
+    gap (structured chart/plot reading), not a prompting problem -- no
+    amount of instruction tuning fixed it on llava, and almost no
+    instruction tuning was needed once the model itself was strong enough.
+
+    Caption grounding (element.caption, captured in ingest.py as text
+    within a tight vertical window of the image's own bbox, not the whole
+    page) is kept regardless of which vision model is used -- it's still
+    a real, independent improvement: when the surrounding prose states a
+    chart's headline number in words ("Installation added 680,000
+    jobs..."), grounding lets the model corroborate that reading rather
+    than relying on pixel-reading alone for numbers that are ALSO stated
+    in text nearby.
     """
     b64 = base64.b64encode(element.image_bytes).decode("ascii")
+    caption_block = (
+        f"\n\nText near this image on the page (for context -- if this text states "
+        f"specific numbers or facts about what's shown in the image, treat that as "
+        f"confirmation of your own reading):\n{element.caption}"
+        if element.caption else ""
+    )
     resp = ollama.chat(
         model=vision_model,
         messages=[{
             "role": "user",
             "content": (
-                "Describe what this image shows in 2-3 sentences. If it's a "
-                "chart or graph, mention the axes, what's being compared, and "
-                "any clear trend. Be specific."
+                "Describe what this image shows. If it's a chart or graph, "
+                "state the title, both axes, what's being compared, and "
+                "EVERY category/data point with its exact value -- not just "
+                "the largest or most notable one. Be specific with numbers."
+                f"{caption_block}"
             ),
             "images": [b64],
         }],

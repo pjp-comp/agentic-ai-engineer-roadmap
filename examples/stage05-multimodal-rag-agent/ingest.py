@@ -54,6 +54,16 @@ class Element:
                            # and citations can say which document an
                            # answer came from, not just which page.
     image_bytes: bytes | None = None   # only set when kind == "image"
+    caption: str = ""     # only set when kind == "image" -- nearby text on
+                           # the same page, passed to the vision model as
+                           # GROUNDING context (see index.py's
+                           # _summarize_image). A vision model describing a
+                           # chart from pixels alone can hallucinate
+                           # specifics (wrong numbers, invented categories,
+                           # invented trends) -- the surrounding prose
+                           # usually states the real numbers in words, so
+                           # giving the model that text alongside the image
+                           # measurably reduces fabrication.
     element_id: str = ""  # unique id, assigned in parse_pdf() -- namespaced
                            # by source (e.g. "sample.pdf::table-8") so
                            # elements from different PDFs never collide
@@ -94,7 +104,20 @@ def parse_pdf(pdf_path: Path) -> list[Element]:
             table_bboxes.append(fitz.Rect(table.bbox))
             print(f"  [ingest] page {page_num}: found table ({len(rows)} rows)", file=sys.stderr)
 
-        # --- Images
+        # --- Images. Each image gets a NEARBY-text caption for grounding
+        # the vision model in index.py -- not the whole page's text. A
+        # real bug this caught: page 4 of sample_complex.pdf has a chart
+        # AND an unrelated investment table below it; passing the WHOLE
+        # page's text as "caption" let the vision model latch onto the
+        # investment table's numbers and misattribute them as chart
+        # categories. Restricting to text within a fixed vertical window
+        # of the image's own bounding box (get_image_bbox) -- roughly one
+        # paragraph above and below -- keeps the grounding text limited to
+        # what a human reader would actually associate with THIS image,
+        # not everything else that happens to share the page.
+        all_blocks = page.get_text("blocks", sort=True)
+        CAPTION_WINDOW_PT = 80   # ~1 paragraph of vertical space, in PDF points
+
         for img_index, img in enumerate(page.get_images(full=True)):
             xref = img[0]
             try:
@@ -107,12 +130,32 @@ def parse_pdf(pdf_path: Path) -> list[Element]:
             # just add noise to retrieval.
             if len(image_bytes) < 5000:
                 continue
+
+            try:
+                image_rects = page.get_image_rects(xref)
+                image_bbox = image_rects[0] if image_rects else None
+            except Exception:
+                image_bbox = None
+
+            if image_bbox is not None:
+                nearby_lines = [
+                    block_text.strip()
+                    for x0, y0, x1, y1, block_text, *_ in all_blocks
+                    if block_text.strip()
+                    and y0 >= image_bbox.y0 - CAPTION_WINDOW_PT
+                    and y1 <= image_bbox.y1 + CAPTION_WINDOW_PT
+                ]
+                caption_text = "\n".join(nearby_lines)
+            else:
+                caption_text = ""   # couldn't locate the image on the page -- ground with nothing rather than the whole page
+
             counter += 1
             elements.append(Element(
                 kind="image",
                 page=page_num,
                 content="",
                 image_bytes=image_bytes,
+                caption=caption_text,
                 source=source,
                 element_id=f"{source}::image-{counter}",
             ))

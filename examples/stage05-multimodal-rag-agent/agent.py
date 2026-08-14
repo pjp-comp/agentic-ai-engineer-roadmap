@@ -14,7 +14,7 @@ and can be resumed.
 
 Ollama only:
   LOCAL_MODEL     llama3.1:8b     -- generation, grading, table summarization
-  VISION_MODEL    llava:7b        -- image/chart description (index.py only)
+  VISION_MODEL    qwen2.5vl:7b    -- image/chart description (index.py only)
   EMBEDDING_MODEL nomic-embed-text -- turns summaries into vectors
 
 Pipeline, end to end:
@@ -49,7 +49,7 @@ representations of the same element for this reason (see index.py).
 
 Usage:
     ollama pull llama3.1:8b        # one-time, ~4.9GB, shared with other examples
-    ollama pull llava:7b            # one-time, ~4.7GB, vision model for images
+    ollama pull qwen2.5vl:7b        # one-time, ~6GB, vision model for images
     ollama pull nomic-embed-text    # one-time, ~274MB, shared with stage04/stage05
     uv run build_index.py                          # index sample.pdf (see that file)
     uv run build_index.py --pdf sample_complex.pdf  # ADD a second PDF to the same index
@@ -84,7 +84,7 @@ from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 
 from build_index import PERSIST_DIR
-from index import EMBEDDING_MODEL, LOCAL_MODEL, load_docstore
+from index import EMBEDDING_MODEL, LOCAL_MODEL, VISION_MODEL, load_docstore
 from session import PersistentSessionService, Session
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
@@ -326,7 +326,7 @@ def ask(question: str, session_id: str | None = None, source_filter: str | None 
     path. For a real back-and-forth without re-paying startup cost or
     retyping --resume every time, use --chat instead (see chat_loop()).
     """
-    print(f"  [model] local via Ollama: {LOCAL_MODEL} (chat/grading), llava:7b (vision, index-time only)", file=sys.stderr)
+    print(f"  [model] local via Ollama: {LOCAL_MODEL} (chat/grading), {VISION_MODEL} (vision, index-time only)", file=sys.stderr)
     vector_store = _build_vector_store()
     docstore = load_docstore(PERSIST_DIR)
     if not docstore:
@@ -356,7 +356,7 @@ def chat_loop(session_id: str | None = None, source_filter: str | None = None) -
     every line typed at the prompt becomes another turn against the same
     already-loaded session, same as a real chat UI would do it.
     """
-    print(f"  [model] local via Ollama: {LOCAL_MODEL} (chat/grading), llava:7b (vision, index-time only)", file=sys.stderr)
+    print(f"  [model] local via Ollama: {LOCAL_MODEL} (chat/grading), {VISION_MODEL} (vision, index-time only)", file=sys.stderr)
     vector_store = _build_vector_store()
     docstore = load_docstore(PERSIST_DIR)
     if not docstore:
