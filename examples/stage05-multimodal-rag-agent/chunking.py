@@ -1,13 +1,29 @@
 """
-Element-aware PDF parsing -- turns sample.pdf into a list of typed
-Elements (text blocks, tables, images), each tagged with the page it
-came from. This is the FIRST half of the "multi-vector retrieval"
-technique this example builds (see index.py for the second half:
-generating a searchable summary per element).
+CHUNKING -- element-aware parsing for every file type this pipeline
+accepts. Turns a source file into a list of typed Elements (text blocks,
+tables, images), each tagged with the page (or 1, for page-less formats)
+it came from. This is the FIRST stage of the pipeline (see vision.py for
+the second: generating a searchable summary per element).
 
-Why element-aware, not "extract all text into one blob": a PDF's table
-and a PDF's embedded chart are fundamentally different kinds of content
-that need different extraction paths:
+Four source types, four different extraction paths -- see parse_file()
+for the dispatcher that picks one by file extension:
+
+  .pdf              -> parse_pdf(): the full element-aware extraction
+                        this module started with (see below).
+  .txt / .md        -> parse_text_file(): the file's content, read
+                        directly. No parsing library, no model call --
+                        it's already exactly the text it is.
+  .png/.jpg/.jpeg/
+  .webp             -> parse_image_file(): the ENTIRE file is one image
+                        Element, no PDF page or embedding context around
+                        it to draw a caption from (see caption handling
+                        below) -- it goes straight to vision.py's
+                        vision-model summarization, same as an image
+                        found INSIDE a PDF would.
+
+Why element-aware for PDFs specifically, not "extract all text into one
+blob": a PDF's table and a PDF's embedded chart are fundamentally
+different kinds of content that need different extraction paths:
 
   - Text blocks   -> pymupdf reads them directly as real text. No model
                      call needed at all.
@@ -22,11 +38,12 @@ that need different extraction paths:
                      PNG of some pixels" isn't retrievable by meaning.
                      This is the one element type that needs a model
                      (a vision-capable one) to become searchable at all --
-                     handled in index.py, not here. ingest.py's job stops
-                     at "here are the raw image bytes and which page they're on."
+                     handled in vision.py, not here. chunking.py's job
+                     stops at "here are the raw image bytes and which
+                     page they're on."
 
 Treating everything as one flat text blob (the naive approach) silently
-loses the image entirely (raw PNG bytes aren't text) and often mangles
+loses images entirely (raw PNG bytes aren't text) and often mangles
 tables (reading a table row-by-row left-to-right as if it were a
 sentence produces garbled, barely-searchable text). Splitting extraction
 by element type is what makes each type retrievable in a way that
@@ -38,6 +55,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import fitz  # PyMuPDF
+
+CAPTION_WINDOW_PT = 80   # ~1 paragraph of vertical space, in PDF points
+MIN_IMAGE_BYTES = 5000   # below this, treat as a decoration/icon, not content
+
+TEXT_EXTENSIONS = {".txt", ".md"}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
 
 @dataclass
@@ -56,8 +79,8 @@ class Element:
     image_bytes: bytes | None = None   # only set when kind == "image"
     caption: str = ""     # only set when kind == "image" -- nearby text on
                            # the same page, passed to the vision model as
-                           # GROUNDING context (see index.py's
-                           # _summarize_image). A vision model describing a
+                           # GROUNDING context (see vision.py's
+                           # summarize_image). A vision model describing a
                            # chart from pixels alone can hallucinate
                            # specifics (wrong numbers, invented categories,
                            # invented trends) -- the surrounding prose
@@ -102,21 +125,19 @@ def parse_pdf(pdf_path: Path) -> list[Element]:
                 element_id=f"{source}::table-{counter}",
             ))
             table_bboxes.append(fitz.Rect(table.bbox))
-            print(f"  [ingest] page {page_num}: found table ({len(rows)} rows)", file=sys.stderr)
+            print(f"  [chunking] page {page_num}: found table ({len(rows)} rows)", file=sys.stderr)
 
         # --- Images. Each image gets a NEARBY-text caption for grounding
-        # the vision model in index.py -- not the whole page's text. A
-        # real bug this caught: page 4 of sample_complex.pdf has a chart
-        # AND an unrelated investment table below it; passing the WHOLE
-        # page's text as "caption" let the vision model latch onto the
-        # investment table's numbers and misattribute them as chart
-        # categories. Restricting to text within a fixed vertical window
-        # of the image's own bounding box (get_image_bbox) -- roughly one
-        # paragraph above and below -- keeps the grounding text limited to
+        # the vision model in vision.py -- not the whole page's text. A
+        # real bug this caught: a page with both a chart AND an unrelated
+        # table below it can let the vision model latch onto the OTHER
+        # table's numbers and misattribute them as chart categories, if
+        # given the whole page. Restricting to text within a fixed
+        # vertical window of the image's own bounding box (roughly one
+        # paragraph above and below) keeps the grounding text limited to
         # what a human reader would actually associate with THIS image,
         # not everything else that happens to share the page.
         all_blocks = page.get_text("blocks", sort=True)
-        CAPTION_WINDOW_PT = 80   # ~1 paragraph of vertical space, in PDF points
 
         for img_index, img in enumerate(page.get_images(full=True)):
             xref = img[0]
@@ -128,7 +149,7 @@ def parse_pdf(pdf_path: Path) -> list[Element]:
             # Skip tiny images (icons, bullet-point graphics, page
             # decorations) -- not worth a vision-model call, and they'd
             # just add noise to retrieval.
-            if len(image_bytes) < 5000:
+            if len(image_bytes) < MIN_IMAGE_BYTES:
                 continue
 
             try:
@@ -159,7 +180,7 @@ def parse_pdf(pdf_path: Path) -> list[Element]:
                 source=source,
                 element_id=f"{source}::image-{counter}",
             ))
-            print(f"  [ingest] page {page_num}: found image ({len(image_bytes)} bytes)", file=sys.stderr)
+            print(f"  [chunking] page {page_num}: found image ({len(image_bytes)} bytes)", file=sys.stderr)
 
         # --- Plain text, with table regions excluded by actual bounding-box
         # overlap -- NOT a length/shape heuristic. An earlier version of
@@ -194,5 +215,80 @@ def parse_pdf(pdf_path: Path) -> list[Element]:
             ))
 
     doc.close()
-    print(f"  [ingest] parsed {len(elements)} element(s) from {pdf_path.name}", file=sys.stderr)
+    print(f"  [chunking] parsed {len(elements)} element(s) from {pdf_path.name}", file=sys.stderr)
     return elements
+
+
+def parse_text_file(path: Path) -> list[Element]:
+    """A .txt/.md file needs no library and no model call to become an
+    Element -- it's already exactly the text it is. Split on blank lines
+    into paragraph-sized chunks, the same granularity a PDF's per-block
+    text extraction produces, rather than indexing the whole file as one
+    giant Element (which would embed poorly for the same reason a whole
+    PDF page embedded as one blob would -- see this module's docstring).
+    """
+    source = path.name
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    elements: list[Element] = []
+    counter = 0
+
+    for para in raw.split("\n\n"):
+        para = para.strip()
+        if not para:
+            continue
+        counter += 1
+        elements.append(Element(
+            kind="text",
+            page=1,   # text files have no page concept -- always 1, page is a PDF-specific citation detail
+            content=para,
+            source=source,
+            element_id=f"{source}::text-{counter}",
+        ))
+
+    print(f"  [chunking] parsed {len(elements)} element(s) from {path.name}", file=sys.stderr)
+    return elements
+
+
+def parse_image_file(path: Path) -> list[Element]:
+    """A standalone image file (not embedded in a PDF) becomes ONE image
+    Element, with no caption -- there's no surrounding page text to draw
+    a caption window from the way chunking.py's PDF path does (see
+    CAPTION_WINDOW_PT above). vision.py's summarize_image() still works
+    correctly with an empty caption; it just loses the extra grounding
+    that nearby prose would otherwise provide (see vision.py's own
+    docstring for why grounding helps when it's available).
+    """
+    source = path.name
+    image_bytes = path.read_bytes()
+    element = Element(
+        kind="image",
+        page=1,
+        content="",
+        image_bytes=image_bytes,
+        caption="",   # no page/document context to draw a caption from -- see docstring above
+        source=source,
+        element_id=f"{source}::image-1",
+    )
+    print(f"  [chunking] parsed 1 element(s) from {path.name} ({len(image_bytes)} bytes)", file=sys.stderr)
+    return [element]
+
+
+def parse_file(path: Path) -> list[Element]:
+    """The dispatcher build_index.py calls -- picks the right parser by
+    file extension so callers don't need to know or care which one a
+    given file needs. Raises ValueError for anything unrecognized rather
+    than silently skipping it, so an unsupported file in assets/ is a
+    loud, immediate error at index time, not a silent gap discovered
+    later when a question about it can't be answered.
+    """
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        return parse_pdf(path)
+    if suffix in TEXT_EXTENSIONS:
+        return parse_text_file(path)
+    if suffix in IMAGE_EXTENSIONS:
+        return parse_image_file(path)
+    raise ValueError(
+        f"Unsupported file type {suffix!r} for {path.name}. "
+        f"Supported: .pdf, {', '.join(sorted(TEXT_EXTENSIONS))}, {', '.join(sorted(IMAGE_EXTENSIONS))}"
+    )

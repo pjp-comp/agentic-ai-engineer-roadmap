@@ -10,6 +10,8 @@ venv/
 .chroma_facts/
 .chroma_crag/
 .chroma_multimodal/
+examples/stage05-multimodal-rag-agent/assets/*
+!examples/stage05-multimodal-rag-agent/assets/.gitkeep
 .sessions.db
 .sessions/
 .approvals.db
