@@ -27,6 +27,8 @@ def sanitize_tool_output(text: str) -> str:
     # is instructed to treat it as data, never as instructions
 ```
 
+**On "sandboxed" — the subprocess in this brief is a teaching boundary, not a production one.** Building it yourself is the right first step because it forces you to be explicit about what the untrusted code may touch. But a subprocess (and even a plain container) shares a kernel with the host, so it does not contain genuinely adversarial code. [Stage 13's sandboxing section](stage-13-deployment.md#agent-native-infrastructure--what-agents-need-that-ordinary-services-dont) covers what to graduate to — gVisor, Firecracker microVMs, or a hosted sandbox — and the rule for when: if the code was written by a model, or its arguments were chosen by one, a container alone is not enough.
+
 **Runnable version:** [`examples/stage12-guardrails/`](../examples/stage12-guardrails/) builds all three pieces of this brief for real — injection detection + neutralization, a per-role tool allowlist enforced in code, and a genuinely sandboxed subprocess for code execution — then runs five scenarios including the actual "ignore previous instructions" attack this stage's "Done when" names. Runs entirely on Ollama.
 
 ## Beyond prompt injection — risks specific to agentic systems

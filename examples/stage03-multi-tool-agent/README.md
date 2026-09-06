@@ -68,6 +68,20 @@ python agent.py "How many words are in 'the quick brown fox jumps'? Also convert
 - **The system prompt now says "pick whichever tool actually fits"** — with one tool, the model has no real choice to make. With four, prompting for restraint matters: nothing stops the model from calling `calculate` on a word-count question if the tool descriptions are vague. Precise `description` fields in `TOOLS` do more work here than the system prompt does.
 - **`get_weather`'s deliberate error path** — a real tool set always includes at least one tool that can fail for reasons that aren't the caller's fault (not-found, rate-limited, offline). Watch it recover in the transcript rather than assuming it will.
 - **Still one `tool_results` batch per turn** — the loop logic is byte-for-byte the same as example 01's; more tools didn't require more loop complexity, only more dispatch and better descriptions.
+- **`tool_name` on every tool result** — with one tool you can omit it and nothing breaks. With three results coming back from a single turn, omitting it hands the model an anonymous list and it has to *guess* which result answers which call. When it guesses wrong the symptom is bizarre rather than obviously broken: the agent starts answering a question nobody asked. This is the first example in the repo where that field stops being optional.
+
+## A real limit of small models, worth seeing
+
+Run this example four or five times. Roughly half the runs answer all three questions cleanly; the rest drop one, or substitute a canned "I don't have real-time weather access" refusal *for a result the tool already returned successfully*. **This is not a bug in the code, and it's deliberately not hidden.**
+
+Two things were verified before concluding that, and both are worth knowing as debugging technique:
+
+1. **The mechanism is provably correct.** Drive the loop by hand and all three tools dispatch, all three results come back correctly labelled (`5`, `3.107`, `27°C, sunny`), and the model composes the right answer. The plumbing works.
+2. **The obvious harness fix doesn't help here.** [Stage 7](../../docs/stage-07-single-agent.md) teaches that once the loop has what it needs, you stop passing `tools=` so the model can't keep calling them. Measured over five paired trials, that changes nothing on this task — and occasionally makes it worse (one run confidently reported "9 words"). A real fix has to survive being measured; this one didn't, so it isn't applied.
+
+What's left is the model's actual ceiling. Three simultaneous calls plus three results is near the limit of what a 3B model coordinates reliably — the same loop is stable with Claude (`USE_LOCAL_MODEL=false`) and stable locally with *one* tool (example 01). Neither the loop nor the model is at fault alone; it's their interaction with a harder coordination task.
+
+The lesson that generalizes: **tool-calling reliability degrades with the number of concurrent calls, not only with model size.** If you need many tools on a small model, the fix is architectural rather than prompt-level — show a relevant subset of tools per turn (Stage 2's [context confusion](../../docs/stage-02-llm-fundamentals.md#the-four-context-failure-modes--a-debugging-vocabulary)), or constrain the model to one call per turn and let the loop sequence them. Prompting the model to "be careful" does not close this gap, and neither does the Stage 7 trick.
 
 ## Extend it (optional exercises)
 

@@ -2,7 +2,7 @@
 
 # Stage 03 — Tool Calling + Structured Outputs
 
-Pydantic validation · function calling schemas · error recovery · dynamic tool discovery
+Pydantic validation · function calling schemas · error recovery · dynamic tool discovery · MCP vs. plain APIs · Skills and progressive disclosure · computer-use tools
 
 ## Why this matters
 
@@ -74,7 +74,7 @@ Most developers *use* MCP servers before they ever build one. MCP itself is vend
 
 ```python
 response = client.beta.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=1024,
     betas=["mcp-client-2025-11-20"],
     mcp_servers=[
@@ -84,6 +84,8 @@ response = client.beta.messages.create(
     messages=[{"role": "user", "content": "List open issues in this repo"}],
 )
 ```
+
+Two things that trip people up here: the `mcp_servers` entry and the `mcp_toolset` entry are **both** required — passing only `mcp_servers` is rejected as a validation error — and `betas=[...]` carries a dated beta header that rotates as the feature matures. Check the current value in the [MCP connector docs](https://platform.claude.com/docs/en/agents-and-tools/mcp-connector) rather than copying the string above verbatim; a stale beta header is the most common reason this snippet stops working months later.
 
 ### Building a minimal MCP server
 
@@ -106,6 +108,36 @@ if __name__ == "__main__":
 That's the whole server — `mcp.tool()` auto-derives the schema from the function signature (same idea as Stage 3's Pydantic validation, but the schema is now discoverable by any MCP client, not just your own code).
 
 **Runnable version:** [`examples/stage03-mcp-tool-server/`](../examples/stage03-mcp-tool-server/) takes this exact sketch further — it's example 01's calculator agent with the tool moved behind a real MCP server, so you can run both the server and a Claude-driven client and see the discovery + `call_tool()` round-trip actually happen.
+
+## Skills — packaging procedural knowledge instead of stuffing the prompt
+
+Tools give the model new *capabilities*. There's a separate problem tools don't solve: giving the model **procedural knowledge** — how your company formats a report, the six steps of your deploy checklist, the conventions of your codebase. The instinctive fix is to put all of it in the system prompt, which fails for a reason [Stage 2's context-confusion failure mode](stage-02-llm-fundamentals.md#the-four-context-failure-modes--a-debugging-vocabulary) names precisely: every instruction you add is present on *every* call, including the 95% of calls where it's irrelevant, and irrelevant context degrades the model's choices.
+
+**Skills** solve this with **progressive disclosure**: procedural knowledge lives in files, and the model loads only what the current task needs. The mechanism is three-tier:
+
+| Tier | What's always in context | When it loads |
+|---|---|---|
+| **1. Metadata** | Just a name and one-line description of each skill | Always — this is the only permanent cost, a few dozen tokens per skill |
+| **2. Body** | The skill's actual instructions | Only when the model judges the description relevant to the current task |
+| **3. Linked resources** | Reference files, scripts, templates the skill points to | Only when the loaded skill actually needs them |
+
+The payoff: you can have fifty skills available while paying the context cost of fifty one-line descriptions, not fifty full procedures. A skill is just a folder with a markdown file and optional supporting files — no framework, no API, no fine-tuning:
+
+```
+skills/
+  quarterly-report/
+    SKILL.md          # frontmatter: name + description; body: the procedure
+    template.xlsx     # loaded only if the procedure references it
+```
+
+**How this differs from the neighbours it gets confused with:**
+
+- **vs. a tool** — a tool is something the model *calls* and gets a result back from; a skill is something the model *reads* to know how to proceed. A skill can tell the model which tools to call, in what order.
+- **vs. RAG** (Stage 5) — RAG retrieves *facts* to answer a question. Skills load *procedures* to perform a task. Similar retrieval mechanics, different content and different trigger.
+- **vs. fine-tuning** — fine-tuning bakes behavior into weights: expensive, slow to iterate, opaque when wrong. A skill is a text file you edit and re-run. For teaching a model *how your organization does something*, skills are almost always the right tool now; fine-tuning is for changing the model's fundamental capabilities, not its procedures.
+- **vs. MCP** — orthogonal, and they compose. MCP delivers tools; skills deliver the know-how for using them well. A skill can reference MCP-provided tools by name.
+
+**When to reach for it:** you have a procedure that's long, that applies to only a fraction of requests, and that you expect to revise. If it's short and always relevant, it belongs in the system prompt — a skill would just be indirection. The general principle is the one worth taking away even if you never write a `SKILL.md`: **context should be loaded on demand, not held permanently**, and that principle applies to tool schemas and retrieved documents just as much as to instructions.
 
 ## A third paradigm: computer-use tools
 

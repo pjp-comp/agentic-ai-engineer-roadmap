@@ -2,7 +2,7 @@
 
 # News/PDF Event-Storyline RAG — Implementation Plan
 
-**Status: planning document, not yet implemented.** This folder has no code in it yet — this README is the design to build against when this example gets built. It exists so the architecture decision (and the reasoning behind it) is written down before implementation starts, not reconstructed from memory later.
+**Status: a design document, deliberately.** This folder has no code, and that's the point — it's the one place in this repo where an architecture is worked out *on paper* before any implementation exists, which is a skill the rest of the roadmap asserts matters but never demonstrates. Read it for the reasoning, not for something to run. If you do build it later, this is the spec to build against.
 
 ## The problem this solves
 

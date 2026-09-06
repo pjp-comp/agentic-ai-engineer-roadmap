@@ -2,7 +2,7 @@
 
 # Example 00 — Sampling Parameters (Not an Agent)
 
-Every other example in this repo is an agent: tools, a loop, a decision point. This one deliberately isn't — it's the raw mechanism underneath all of them, made hands-on instead of just described in [Stage 2's sampling-parameters table](../../docs/stage-02-llm-fundamentals.md#how-llms-actually-work--the-mechanics-everything-else-in-this-roadmap-assumes). Every `agent.py` in this repo sets `temperature=0` (or `temperature=0.3`) without explaining why — this is where that "why" becomes something you watch happen, before any tool-calling or loop complexity gets added on top.
+Every other example in this repo is an agent: tools, a loop, a decision point. This one deliberately isn't — it's the raw mechanism underneath all of them, made hands-on instead of just described in [Stage 2's sampling-parameters table](../../docs/stage-02-llm-fundamentals.md#how-llms-actually-work). Every `agent.py` in this repo sets `temperature=0` (or `temperature=0.3`) without explaining why — this is where that "why" becomes something you watch happen, before any tool-calling or loop complexity gets added on top.
 
 ## What it is
 
@@ -65,4 +65,4 @@ uv run sampling_params.py same-prompt --prompt "Name a color." --temperature 1.0
 
 ## Where this goes next
 
-Read [Stage 2's full section](../../docs/stage-02-llm-fundamentals.md#how-llms-actually-work--the-mechanics-everything-else-in-this-roadmap-assumes) for the token/next-token-prediction fundamentals this script assumes, then move to [`examples/stage03-tool-calling/`](../stage03-tool-calling/) — the same `temperature=0` philosophy demonstrated here is exactly why that example's tool-calling loop is reliable across repeated runs.
+Read [Stage 2's full section](../../docs/stage-02-llm-fundamentals.md#how-llms-actually-work) for the token/next-token-prediction fundamentals this script assumes, then move to [`examples/stage03-tool-calling/`](../stage03-tool-calling/) — the same `temperature=0` philosophy demonstrated here is exactly why that example's tool-calling loop is reliable across repeated runs.

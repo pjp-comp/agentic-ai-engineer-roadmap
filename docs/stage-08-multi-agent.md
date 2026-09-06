@@ -31,6 +31,45 @@ graph.add_edge("writer", "supervisor")
 
 **Runnable version:** [`examples/stage08-supervisor-langgraph/`](../examples/stage08-supervisor-langgraph/) builds this exact supervisor graph — a router node deciding "who's next" with no LLM call, a researcher and writer worker, plus a critic node sitting at the researcher→writer handoff that rejects thin research instead of forwarding it (the "Guardrails at the handoff" pattern below, built as an actual node). Runs entirely on Ollama.
 
+## The topology catalogue — supervisor is one shape, not the only one
+
+This stage's brief builds a supervisor, and supervisor is the right default. But "multi-agent" describes at least six distinct topologies, and knowing them apart matters because the topology determines your failure modes, not just your diagram:
+
+| Topology | Shape | Who decides what runs next | Reach for it when | Main failure mode |
+|---|---|---|---|---|
+| **Supervisor** (this stage's brief) | Hub and spoke — one router, N workers | A central supervisor node | The default. Clear ownership, one place to debug routing | The supervisor becomes a bottleneck and a single point of failure; every handoff pays a routing call |
+| **Pipeline / sequential** | A → B → C, fixed order | Nobody — the order is hard-coded | The stages genuinely never vary (extract → transform → summarize) | It's not really multi-agent; if you never branch, this is Stage 7's prompt-chaining pattern with extra ceremony |
+| **Swarm / peer handoff** | Agents transfer control directly to each other, no hub | Whichever agent currently holds control | Conversational flows where the "right specialist" emerges mid-conversation (a support triage that hands off to billing, which hands off to technical) — the OpenAI Agents SDK's native model | Control can ping-pong between two agents that each think the other should handle it; needs a hop limit the way ReAct needs an iteration cap |
+| **Hierarchical** | Supervisors of supervisors | A tree of routers | A single supervisor's routing prompt has grown too big to be reliable — split it into domain supervisors | Latency and cost compound multiplicatively down the tree; a three-level hierarchy can pay three routing calls before any work happens |
+| **Blackboard** | Agents read from and write to shared state, no explicit routing | Emergent — agents act when the state contains work they can do | Loosely-coupled agents whose ordering genuinely doesn't matter — **this is what [`examples/stage06-sessions-langgraph/`](../examples/stage06-sessions-langgraph/) actually builds**, a researcher/writer pair communicating only through shared state | Hard to reason about and harder to debug: "why did nothing happen?" has no single place to look |
+| **Network / any-to-any** | Every agent can call every other agent | Each agent, independently | Rarely. Listed here mainly so you can recognize and avoid it | Combinatorial: N agents means N² possible transitions, and no one can predict what path a run took. Almost always a supervisor or swarm in disguise, built without deciding which |
+
+**The decision rule:** start with supervisor. Move to swarm only when the routing decision genuinely depends on conversational context the router doesn't have. Move to hierarchical only when one supervisor's prompt has become unreliable — not preemptively. Treat network as a smell.
+
+Note how this maps onto [the graph-engineering section below](#graph-engineering-in-depth--why-the-topology-is-a-first-class-design-decision): the topology is *question 2* (which transitions are permitted) answered at the whole-system level. Picking a named topology up front is what stops you from accidentally building a network graph one edge at a time.
+
+## Sub-agents as context isolation — the motivation that isn't specialization
+
+The usual justification for multiple agents is **specialization**: a researcher prompt and a writer prompt are each sharper than one prompt trying to do both. That's real, but it's not the reason most production systems actually reach for sub-agents in 2026. The bigger reason is **context isolation**.
+
+Consider an agent that must read forty search results to answer one question. If it does that in its own loop, all forty results accumulate in its context window — and by result thirty it's suffering [context distraction](stage-02-llm-fundamentals.md#the-four-context-failure-modes--a-debugging-vocabulary), reasoning over a window that's mostly noise. Now spawn a sub-agent per source instead: each gets a clean window, reads one source, and returns a three-line summary. The parent's context grows by forty *summaries* rather than forty *documents*.
+
+The reframing: **a sub-agent is a way to spend tokens without spending context.** The work still happens; it just doesn't accumulate in the window that has to stay coherent for the final answer.
+
+| | Specialization sub-agent | Context-isolation sub-agent |
+|---|---|---|
+| **Why it exists** | Its prompt is better at this task than a general one | Its context window is separate from the parent's |
+| **What it returns** | A result only it could produce well | A compressed version of work the parent could have done itself |
+| **How many** | One per role, defined up front | One per work item — often spawned dynamically, N unknown until runtime |
+| **Fits the graph as** | A named node (`researcher`, `writer`) | A dynamic fan-out, joined back by a join node |
+
+Two practical constraints, both learned the hard way:
+
+- **Sub-agents can't see the parent's context, and that's the point** — but it means the parent must pass down *everything* the sub-agent needs in its task description. An under-specified sub-agent task is the single most common source of "why did the sub-agent do something irrelevant."
+- **Fan-out is where cost actually explodes.** Stage 8's "~3× tokens" warning assumes a handful of agents. Spawning one sub-agent per search result turns a single task into dozens of loops. Cap the fan-out width explicitly the way [Stage 7](stage-07-single-agent.md) caps loop iterations — and use a cheap model for the workers, since summarizing one document is exactly the kind of task that doesn't need a frontier model.
+
+This is also why the **join** node in the node-type table below matters more than it first appears: a fan-out without a join is just N agents doing work nobody collects.
+
 ## Beyond LangGraph/CrewAI — the wider 2026 framework field
 
 LangGraph and CrewAI are one reasonable default, not the whole field. Knowing what else exists matters when a project's constraints (language, team preference, or a specific pattern the framework makes easy) point elsewhere:

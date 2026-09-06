@@ -93,7 +93,14 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
         supported = ", ".join(_LENGTH_TO_METERS)
         return f"Error: unsupported unit — supported units are {supported}"
     meters = value * _LENGTH_TO_METERS[from_unit]
-    return str(meters / _LENGTH_TO_METERS[to_unit])
+    result = meters / _LENGTH_TO_METERS[to_unit]
+    # Round before returning. A tool's output goes straight into the model's
+    # context and usually straight into the user's answer, so binary float
+    # noise ("3.1068559611866697 miles") leaks all the way through unless the
+    # tool trims it here. Formatting is the tool's job, not the model's --
+    # asking the prompt to "round nicely" is a much less reliable fix than
+    # simply not emitting the noise in the first place.
+    return f"{result:.4g}"
 
 
 # Deliberately tiny and incomplete — the point is to show the model handling
@@ -314,7 +321,7 @@ def _run_agent_local(user_task: str) -> str:
                 handler = _DISPATCH.get(name)
                 result = handler(args) if handler else f"Error: unknown tool '{name}'"
                 messages.append({"role": "assistant", "content": msg.content})
-                messages.append({"role": "tool", "content": result})
+                messages.append({"role": "tool", "tool_name": name, "content": result})
                 continue
             return msg.content or "(no text response)"
 
@@ -326,7 +333,15 @@ def _run_agent_local(user_task: str) -> str:
             print(f"  [tool call] {name}({args})", file=sys.stderr)
             handler = _DISPATCH.get(name)
             result = handler(args) if handler else f"Error: unknown tool '{name}'"
-            messages.append({"role": "tool", "content": result})
+            # tool_name is load-bearing once a turn issues MORE THAN ONE tool
+            # call. Three unlabeled {"role": "tool"} messages arrive back as an
+            # anonymous list, and the model has to guess which result answers
+            # which call -- in practice it guesses wrong and starts answering a
+            # question nobody asked. With a single tool you can get away with
+            # omitting it; with four you cannot. This is the multi-tool-specific
+            # bug this example exists to surface, so it is fixed here rather
+            # than left as an exercise.
+            messages.append({"role": "tool", "tool_name": name, "content": result})
 
     return "(gave up: exceeded MAX_ITERATIONS without a final answer)"
 
