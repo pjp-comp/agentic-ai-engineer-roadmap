@@ -233,7 +233,7 @@ def _run_agent_local(user_task: str) -> str:
                 print(f"  [tool call] calculate({written_out}) — written as text, running directly", file=sys.stderr)
                 result = calculate(written_out["expression"])
                 messages.append({"role": "assistant", "content": msg.content})
-                messages.append({"role": "tool", "content": result})
+                messages.append({"role": "tool", "tool_name": "calculate", "content": result})
                 continue
 
             # Model is done — same check as the Claude path's
@@ -256,7 +256,12 @@ def _run_agent_local(user_task: str) -> str:
             # Ollama's chat API takes tool results back as role="tool"
             # messages, one per call — its equivalent of Claude's batched
             # tool_result content blocks, just modeled as separate messages.
-            messages.append({"role": "tool", "content": result})
+            # tool_name labels which call this result answers. With one tool
+            # it's merely good hygiene; once a turn issues several calls it
+            # becomes load-bearing (see examples/stage03-multi-tool-agent/),
+            # because otherwise the results come back as an anonymous list
+            # and the model has to guess which is which.
+            messages.append({"role": "tool", "tool_name": name, "content": result})
 
     return "(gave up: exceeded MAX_ITERATIONS without a final answer)"
 

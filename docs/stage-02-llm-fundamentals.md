@@ -8,7 +8,7 @@ Context engineering · model routing · multi-model (cross-provider) agents · t
 
 Agent cost and latency are dominated by model choice and context size, not your orchestration code. Knowing when a small/fast model beats a frontier one — and how prompt caching changes the economics — is what separates a demo from something affordable to run at volume.
 
-## How LLMs actually work — the mechanics everything else in this roadmap assumes
+## How LLMs actually work
 
 Every stage after this one talks about "tokens," "context windows," and "temperature" as if you already know what they are. This section is that missing prerequisite, covered once here so it doesn't need repeating.
 
@@ -39,6 +39,31 @@ You'll see `temperature=0.3` set directly in this repo's runnable examples (e.g.
 
 "Thinking like an LLM" in practice means remembering the model has no access to anything outside the current context window and its training — if a fact, a prior decision, or a constraint isn't literally present in the tokens you send it, it doesn't exist for that call, no matter how "obvious" it seems to you. That single idea is also the seed of the next section.
 
+## Context engineering — the discipline this stage is actually teaching
+
+"Prompt engineering" means wording one instruction well. **Context engineering** is the broader, now-dominant skill: deciding *everything* that goes into the model's context window on a given call — which tool schemas, which memory, which retrieved chunks, how much conversation history, in what order — and, just as importantly, what to leave out. Model routing (the brief below) is context engineering applied to one axis: which model sees the context at all. Stages 3–6 are context engineering applied to the rest: which tools are visible (Stage 3), which memory tier answers a given question (Stage 4), which retrieved documents get included (Stage 5), which session state is in scope (Stage 6). None of those stages name it explicitly — this is the unifying concept behind all of them.
+
+It's worth knowing by name because it's the term the field now uses for "why did the agent do something wrong" debugging: the answer is almost always "the context it saw was incomplete, stale, or contained the wrong things," not "the model reasoned badly."
+
+### The four context failure modes — a debugging vocabulary
+
+"The context was wrong" is too coarse to act on. These four named failures each have a *different* fix, and being able to tell them apart is the difference between guessing and debugging:
+
+| Failure | What happens | Tell-tale sign | Fix |
+|---|---|---|---|
+| **Context poisoning** | A hallucination (or a bad tool result) enters the context and is then treated as established fact by every subsequent turn | The agent confidently repeats a specific wrong detail it invented several turns ago, and defends it | Validate tool output before it re-enters context; let a turn be *removed*, not just appended to. Stage 12's `wrap_as_untrusted_data` is this same idea applied to a hostile source instead of a mistaken one |
+| **Context distraction** | The context grows so long the model over-attends to its own accumulated history and stops using what it actually knows | Performance degrades as a session gets longer, even though nothing is factually wrong in the history — the agent starts repeating past actions instead of doing new ones | Compaction/summarization past a threshold (Stage 4's fourth tier); the stagnation check in [Stage 7](stage-07-single-agent.md) catches the symptom, compaction addresses the cause |
+| **Context confusion** | Irrelevant content — most often superfluous tool schemas — degrades the model's choices even when it's never used | Tool-selection accuracy drops as you add tools, and the agent calls plausible-but-wrong tools | Show only the tools relevant to the current task rather than every tool the system has; this is what Stage 3's dynamic tool discovery and the Skills pattern both exist to enable |
+| **Context clash** | Two parts of the context contradict each other — an early turn says one thing, a later retrieval says another | Inconsistent answers to the same question within one session; the model appears to "flip-flop" | Supersession on write (Stage 4's forgetting policy) so a corrected fact replaces rather than accompanies the old one |
+
+The reason these are worth memorizing: **three of the four get worse as the system gets more capable.** Adding more tools invites confusion, longer sessions invite distraction, and a bigger memory store invites clash. They're not beginner mistakes you grow out of — they're the failure modes that arrive *with* sophistication, which is why context engineering is a discipline and not a tip.
+
+### Context budgets
+
+The practical technique this adds on top of the brief: **context budgets**, not just model routing. Track tokens_in against a per-call ceiling the same way you'd track $cost, and when a long-running agent's context grows past a threshold, prune or compact it (drop old tool results, summarize stale turns) rather than letting it grow until the model truncates or the request errors — see [Stage 7's long-running-agent section](stage-07-single-agent.md#long-running-agents) for where this becomes unavoidable.
+
+A useful framing for what you're actually doing with a budget: every token in the window is competing for the model's attention. The goal isn't "fit under the limit" — it's "maximize the share of the window that's relevant to the current step." A request at 40% of the context limit with 90% relevant content will outperform one at 80% of the limit with 30% relevant content, even though the second one technically "fits."
+
 ## Brief
 
 Build a router that classifies incoming requests by complexity (regex/heuristic first, cheap-model classifier second) and sends "simple" ones to a fast/cheap model, "complex" ones to a frontier model. Log tokens, latency, and $ per request for both paths.
@@ -51,7 +76,7 @@ This cheap/fast-vs-frontier tiering pattern is universal, not Claude-specific �
 def route(task_complexity: str) -> str:
     return {
         "simple":  "claude-haiku-4-5",
-        "complex": "claude-opus-4-8",
+        "complex": "claude-opus-5",
     }.get(task_complexity, "claude-sonnet-5")
 
 # instrument every call:
@@ -97,12 +122,6 @@ At production scale, a gateway (e.g. LiteLLM, already cited in [Stage 13](stage-
 
 You can predict, before running it, roughly what a given request will cost and how long it'll take — and defend a routing decision with numbers, not vibes.
 
-## Context engineering — the discipline this stage is actually teaching
-
-"Prompt engineering" means wording one instruction well. **Context engineering** is the broader, now-dominant skill: deciding *everything* that goes into the model's context window on a given call — which tool schemas, which memory, which retrieved chunks, how much conversation history, in what order — and, just as importantly, what to leave out. Model routing (the brief above) is context engineering applied to one axis: which model sees the context at all. Stages 3–6 are context engineering applied to the rest: which tools are visible (Stage 3), which memory tier answers a given question (Stage 4), which retrieved documents get included (Stage 5), which session state is in scope (Stage 6). None of those stages name it explicitly — this is the unifying concept behind all of them, and it's worth knowing by name because it's the term the field now uses for "why did the agent do something wrong" debugging: the answer is almost always "the context it saw was incomplete, stale, or contained the wrong things," not "the model reasoned badly."
-
-The practical technique this adds on top of the brief: **context budgets**, not just model routing. Track tokens_in against a per-call ceiling the same way you'd track $cost, and when a long-running agent's context grows past a threshold, prune or compact it (drop old tool results, summarize stale turns) rather than letting it grow until the model truncates or the request errors — see [Stage 7's long-running-agent section](stage-07-single-agent.md#long-running-agents) for where this becomes unavoidable.
-
 ## Cost optimization beyond routing
 
 Model routing is the first lever, not the only one. Once a router is in place, these compound with it:
@@ -110,6 +129,25 @@ Model routing is the first lever, not the only one. Once a router is in place, t
 - **Cache-hit-rate design** — prompt caching (already in the Sources below) only pays off if the cached prefix is stable across calls. Put static content (system prompt, tool definitions) first and volatile content (the user's actual message) last, so the same prefix is reused call after call instead of invalidating the cache every time.
 - **Batch-tier processing** — for anything that doesn't need a synchronous response (nightly scoring, bulk classification, eval runs), batch APIs typically cut cost roughly in half in exchange for async turnaround. Not usable for interactive agent turns, but often applicable to Stage 10's eval suite itself.
 - **Per-session token budgets** — cap total tokens a single agent run is allowed to consume, enforced at the call site (or a gateway in front of it), independent of the iteration cap from Stage 7. An agent that's technically not looping forever can still be quietly expensive per run without one.
+
+## A cost reference to calibrate against
+
+This stage's "Done when" asks you to predict a request's cost before running it. That's impossible without knowing roughly what the tiers cost, so here's a reference point — **prices drift, so treat the shape as the lesson and re-check the numbers** at [Claude](https://platform.claude.com/docs/en/about-claude/pricing) / [OpenAI](https://developers.openai.com/api/docs/pricing) before quoting them anywhere that matters:
+
+| Tier | Example | Input $/1M tokens | Output $/1M tokens |
+|---|---|---|---|
+| **Local / open-weight** | Llama 3.2 3B via Ollama (what this repo's examples use) | $0 marginal | $0 marginal |
+| **Small / fast** | Claude Haiku 4.5 | ~$1 | ~$5 |
+| **Mid** | Claude Sonnet 5 | ~$2 | ~$10 |
+| **Frontier** | Claude Opus 5 | ~$5 | ~$25 |
+
+Three things worth internalizing from the shape of that table, none of which are obvious until you've been billed by one of them:
+
+1. **Output costs ~5× input.** An agent that returns verbose answers is much more expensive than one that reads a lot and answers concisely. Trimming a system prompt saves less than trimming the response length.
+2. **The frontier-to-cheap spread is ~5×, not 100×.** Routing is worth doing, but it isn't the difference between viable and unviable — a badly-designed loop that makes 20 calls where 3 would do costs far more than picking the "wrong" tier. Fix the loop before you optimize the routing.
+3. **Prompt caching changes the math more than model choice does.** A cached input token typically costs a fraction of a fresh one, so a stable prefix across many calls (Stage 2's cache-hit-rate design above) can beat a tier downgrade *without* the quality cost — which is why "cache first, route second" is the right order.
+
+**Working an example.** A ReAct agent with a 2,000-token system prompt + tool schemas, running 5 loop iterations on a task, re-sending the growing history each time, and producing 300 output tokens per step: input is roughly 2,000 + (2,000 + accumulated results) × 4 ≈ 15,000 tokens; output is ~1,500. On a mid-tier model that's roughly $0.03 + $0.015 ≈ **$0.045 per task run.** Cheap for one run; $450 at 10,000 runs a day — which is exactly the point at which Stage 8's "multi-agent costs ~3× a single agent" warning stops being an abstraction. Do this arithmetic once for your own agent and the rest of this roadmap's cost advice becomes concrete.
 
 ---
 [← Stage 01 — Python + Async Foundations](stage-01-python-async.md) · [Back to roadmap](../README.md) · **Next:** [Stage 03 — Tool Calling + Structured Outputs →](stage-03-tool-calling.md)

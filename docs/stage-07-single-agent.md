@@ -54,6 +54,8 @@ return degrade_gracefully(state)  # partial answer, not a crash
 |------|----------|
 | Paper | [Yao et al. — ReAct: Synergizing Reasoning and Acting (2022)](https://arxiv.org/abs/2210.03629) |
 | Paper | [Shinn et al. — Reflexion: Verbal Reinforcement Learning (2023)](https://arxiv.org/pdf/2303.11366) |
+| Paper | [Xu et al. — ReWOO: Decoupling Reasoning from Observations (2023)](https://arxiv.org/abs/2305.18323) — the plan-with-placeholders pattern in the table below |
+| Docs | [LangGraph — Plan-and-Execute tutorial](https://langchain-ai.github.io/langgraph/tutorials/plan-and-execute/plan-and-execute/) — the cheaper-than-ReAct alternative, built as a graph |
 | Guide | [Anthropic — Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents) — the source for the six-pattern table below; read this before reaching for the most complex pattern by default |
 | Guide | [ReAct vs Plan-and-Execute vs ReWOO vs Reflexion — compared](https://theaiengineer.substack.com/p/the-4-single-agent-patterns) |
 | Docs | [LangGraph — StateGraph / agent loop primitives](https://docs.langchain.com/oss/python/langgraph/overview) |
@@ -120,6 +122,20 @@ The ReAct loop above is one of six named patterns from Anthropic's ["Building Ef
 | **Evaluator-optimizer** | One call generates, a second call critiques against explicit criteria, loop until it passes | There's a clear, checkable quality bar and iterative refinement measurably improves the result — distinct from this stage's Reflexion/stagnation check, which reacts to a *stuck* loop rather than running a dedicated critic every pass |
 | **Autonomous agents (ReAct)** | Open-ended loop: the model decides its own steps until done | The path to the answer genuinely can't be predetermined — this stage's pattern, and the most expensive one to get wrong |
 | **Tree-of-Thought (ToT)** | Explores multiple reasoning branches at once, evaluates each, backtracks from dead ends | A single reasoning chain (plain CoT/ReAct) is prone to committing early to a wrong path and a problem has a search-like structure (puzzles, multi-step planning with backtracking) — costs multiples of a single ReAct pass, since you're running several branches |
+
+## Plan-and-Execute and ReWOO — the alternatives to ReAct worth knowing
+
+The table above treats "autonomous agent" as a single pattern. It isn't. Once you've decided the task needs an open-ended loop, there's a second decision most write-ups skip: **how often does the model re-plan?** ReAct re-plans on every single step — that's its defining feature, and its main cost. Two named alternatives move that dial:
+
+| Pattern | How planning works | Cost vs. ReAct | The tradeoff |
+|---|---|---|---|
+| **ReAct** | Re-plan after every observation: think → act → observe → think again | Baseline. One LLM call per step, and each call re-sends the full growing history | Maximum adaptability, maximum cost. The full history re-sent every step is also what makes long ReAct runs prone to [context distraction](stage-02-llm-fundamentals.md#the-four-context-failure-modes--a-debugging-vocabulary) |
+| **Plan-and-Execute** | Plan the whole sequence up front, then execute each step without calling the model to decide the next one; re-plan only if a step fails or the plan is exhausted | Markedly cheaper — one planning call plus cheap execution, instead of one expensive reasoning call per step | Fast and cheap when the plan holds. Brittle when reality diverges early, since it doesn't notice until a step fails |
+| **ReWOO** (Reasoning WithOut Observation) | Plan all steps up front *with variable placeholders* (`#E1`, `#E2`) for results not yet known, execute the tool calls, then one final call fills in the reasoning | Cheapest of the three — tool results never re-enter the planning prompt, so the context doesn't grow per step | Big token savings, but the planner is reasoning blind: it commits to a plan without ever seeing a single result |
+
+**How to choose, concretely:** if you can sketch the steps on paper before running the task, Plan-and-Execute is the right default and ReAct is overkill. If the *second* step genuinely depends on what the first one returns — the classic "search, then decide what to search for next" shape — you need ReAct. ReWOO is the specialist pick for high-volume, cost-sensitive workloads with predictable structure, where its blindness to intermediate results is an acceptable trade.
+
+A practical hybrid many production systems land on: **plan-and-execute as the outer loop, ReAct within a step that turns out to be harder than expected.** You get the cheap path by default and the expensive path only where it's earned. That's the same "start simple, escalate on evidence" principle the six-pattern table teaches, applied one level down.
 
 Anthropic's own framing is worth internalizing verbatim: **start with the simplest pattern (or no framework at all) and add complexity only when it demonstrably improves outcomes.** A prompt chain that works is better than an autonomous agent that's harder to debug for the same result. This stage teaches the most powerful pattern in the table, not the default one — pick it because the task needs it, not because it's the most sophisticated option available.
 

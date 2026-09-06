@@ -61,6 +61,28 @@ def corrective_rag(query: str, vector_store, llm) -> str:
 
 **Multimodal version:** [`examples/stage05-multimodal-rag-agent/`](../examples/stage05-multimodal-rag-agent/) applies the same corrective-RAG loop to real PDFs containing text, tables, and embedded chart images (bring your own — drop them in the example's `assets/` folder) — using **multi-vector retrieval** (embed a generated summary of each table/image for search, but generate the final answer from the original raw content) so tables and images are genuinely searchable by meaning, not just present in the index. Split into one file per pipeline stage (chunking, vision/summarization, embeddings, vector store, retrieval, generation) for readability. Also integrates Stage 6's persistent Session/Event pattern, so a research conversation survives a restart. Ollama only, including a local vision model for image understanding.
 
+## When RAG's unit of retrieval is wrong — a worked design case
+
+Every RAG variant in the table above retrieves **chunks of documents**. There's a class of problem where that's the wrong unit entirely, and recognizing it is worth more than knowing another variant's name.
+
+Take a stream of news about one company:
+
+```
+Aug 1  — announces ₹5,000 Cr capex for a new plant
+Aug 5  — receives environmental approval
+Aug 12 — awards the construction contract
+Aug 18 — delays the project by 6 months
+```
+
+A correct summary of the Aug 18 article is not "the company announced a delay" — it's "the previously announced ₹5,000 Cr project, which cleared environmental approval and had a contractor appointed this month, is now delayed six months." No chunking strategy produces that, because the answer isn't *in* any chunk. Worse, similarity search actively works against you here: an announcement and a delay notice about the same project share almost no vocabulary, while two different companies' similarly-worded announcements look near-identical.
+
+Two structural lessons generalize well beyond news:
+
+- **Separate the evidence from the extracted fact from the accumulated state.** Store the raw article, a structured *event* extracted from it, and the *storyline* state that accumulates across events — three things, not one. Embed only the extracted event summary; embedding whole articles mixes the fact with boilerplate.
+- **Some filters must be hard preconditions, not similarity contributors.** Company identity has to be an exact-match gate applied *before* vector search runs — never blended into the similarity score. This is the single most common serious RAG design error: treating an attribute that must be exactly right as one more fuzzy signal.
+
+[`examples/news-event-storyline-rag/`](../examples/news-event-storyline-rag/) is the full design document for this — the data model, the phased build, and the reasoning for choosing Postgres + pgvector over a graph database on day one. It's a **planning document, not yet implemented**, and it's worth reading precisely for that: it's what thinking an architecture through *before* writing code looks like.
+
 ## Where this fits a multi-agent build
 
 If you're building a multi-agent system that mixes qualitative (news, filings, sentiment) and quantitative (prices, ratios, indicators) data — a stock analysis system is the canonical example — split the two cleanly: a research/sentiment agent uses RAG over news and filings; a data-fetcher and technical-analysis agent use direct tool calls (Stage 3) over a market data API. Don't embed numeric time-series data into a vector store to "make it searchable" — that's the most common RAG misuse, and it produces an agent that's confidently approximate about numbers that need to be exact.
