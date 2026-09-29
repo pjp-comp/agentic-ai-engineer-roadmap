@@ -82,6 +82,16 @@ class AgentMemory:
         return [*recalled, *self.short_term.get()]
 ```
 
+**Runnable versions — the three tiers, built one at a time:**
+
+| Example | Tiers it builds | What to watch |
+|---|---|---|
+| [`examples/stage04-memory-agent/`](../examples/stage04-memory-agent/) | Short-term + persistent | A fact stated in turn 1 ages out of the window and the agent honestly says it doesn't know — then a restart resumes the conversation intact |
+| [`examples/stage04-longterm-memory-agent/`](../examples/stage04-longterm-memory-agent/) | + long-term, as a flat JSON store | A `save_fact` tool the model decides when to call — plus an honest comparison of how much better Claude judges *when* to save than a 3B local model does |
+| [`examples/stage04-longterm-memory-vectorstore/`](../examples/stage04-longterm-memory-vectorstore/) | + long-term, as a real vector store | The same facts retrieved by *meaning*: "when are we kicking things off?" finds a fact saved as "start ai learning on 30th july", despite sharing no words |
+
+Read them in that order — each one is the previous file plus one tier, so the diff between them is the lesson.
+
 If a fourth tier is needed for very long single sessions, add a compression step (an LLM-generated running summary replacing anything that ages out of the short-term window) — but build the three above first; compression is an optimization on top, not a fourth foundational type.
 
 ## Forgetting and eviction — long-term memory needs a cleanup policy too
@@ -127,6 +137,10 @@ class LongTermMemory:
 ```
 
 A more sophisticated option some production systems use is clustering near-duplicate memories (e.g. with k-means) and replacing a cluster of redundant facts with one merged summary — this earns its complexity once you have thousands of memories with genuine overlap; for most projects, TTL + decay + supersession get you most of the benefit for a fraction of the engineering cost. Start with those three before reaching for clustering.
+
+**What the examples cover, and what they don't.** Both long-term memory examples implement **supersession on write** — the third policy above, and the one that matters even in a small store. You can watch it work: tell [`examples/stage04-longterm-memory-vectorstore/`](../examples/stage04-longterm-memory-vectorstore/) your name is Alex, then that it's Sam, then ask — the old fact is deleted on write (a Chroma `delete`-then-`add` keyed on the fact's `key`), so recall returns one value, not two conflicting ones.
+
+**TTL and decay are the genuine gap**, and the most worthwhile extension in this stage. The vector-store example already writes an `updated_at` timestamp on every fact, so it has the data — nothing reads it yet. Filtering recall by age, and adding an `evict_expired()` that runs on a schedule rather than per-request, is a small change against a store that's already shaped for it.
 
 ## The dedicated memory-layer ecosystem
 

@@ -1,0 +1,13 @@
+[project]
+name = "model-router"
+version = "0.1.0"
+description = "Stage 2's complexity router: a two-tier classifier picking the cheapest model that can handle each request, with tokens/latency/cost logged per call."
+requires-python = ">=3.10"
+dependencies = [
+    "ollama>=0.4.0",
+    "anthropic>=0.39.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false

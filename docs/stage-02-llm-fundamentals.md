@@ -83,6 +83,10 @@ def route(task_complexity: str) -> str:
 # tokens_in, tokens_out, cache_read_tokens, latency_ms, $cost
 ```
 
+**Runnable version:** [`examples/stage02-model-router/`](../examples/stage02-model-router/) builds this exact router — the heuristic-first/classifier-second two-tier design, with real token counts, latency, and cost logged per call, plus a `--no-route` baseline so the two totals can be compared. Runs on Ollama (two local tiers) or Claude, one flag apart.
+
+Worth knowing before you run it: **on its sample workload, routing saves about 10%, not 10×.** That's a real measured result and it's left undressed on purpose — it's the cost table below made concrete, and it's what "defend a routing decision with numbers, not vibes" actually feels like when the numbers come back modest.
+
 ## Multi-model agents — routing across vendors, not just tiers
 
 The brief above routes within one vendor's tiers (Claude Haiku vs. Opus). **Multi-model** goes a level further: the router picks between entirely different providers or model families for the same task, not just cheap-vs-expensive versions of one. This repo's own `USE_LOCAL_MODEL` examples (`examples/stage03-tool-calling/`, `examples/stage02-basic-agent-local/`, `examples/stage04-*`) are a working instance of this — one flag switches the exact same agent between Claude and a local Llama model, with the rest of the code untouched.
