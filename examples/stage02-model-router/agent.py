@@ -28,7 +28,7 @@ exists so that the classifier runs rarely.
 Local by default, so this is free to run and to experiment with:
 
     USE_LOCAL_MODEL=true   -> llama3.2:3b (cheap) / llama3.1:8b (frontier)
-    USE_LOCAL_MODEL=false  -> claude-haiku-4-5 / claude-opus-5
+    USE_LOCAL_MODEL=false  -> claude-haiku-4-5 / ANTHROPIC_LARGE_MODEL
 
 The local models cost $0, which would make the cost column useless as a
 teaching device -- so local runs are also priced using the published
@@ -63,15 +63,13 @@ USE_LOCAL_MODEL = os.getenv("USE_LOCAL_MODEL", "true").strip().lower() == "true"
 # Two tiers, whichever backend is in play. The router's job is to pick
 # between them; nothing else in this file cares which pair it got.
 CHEAP_MODEL = os.getenv("LOCAL_MODEL", "llama3.2:3b") if USE_LOCAL_MODEL else "claude-haiku-4-5"
-FRONTIER_MODEL = "llama3.1:8b" if USE_LOCAL_MODEL else "claude-opus-5"
+FRONTIER_MODEL = "llama3.1:8b" if USE_LOCAL_MODEL else os.environ["ANTHROPIC_LARGE_MODEL"]
 
-# $ per 1M tokens (input, output). Published Claude rates -- see
-# docs/stage-02-llm-fundamentals.md's cost table. Applied to local runs
-# too, as clearly-labelled simulated pricing, so the cost column has
-# something to show. Re-check these before quoting them anywhere real.
+# Illustrative $ per 1M tokens (input, output), not verified current rates.
+# Configure actual provider rates before using this for billing estimates.
 PRICING = {
-    CHEAP_MODEL: (1.00, 5.00),      # Haiku-tier
-    FRONTIER_MODEL: (5.00, 25.00),  # Opus-tier
+    CHEAP_MODEL: (float(os.getenv("SMALL_INPUT_RATE", "1")), float(os.getenv("SMALL_OUTPUT_RATE", "5"))),      # Haiku-tier
+    FRONTIER_MODEL: (float(os.getenv("LARGE_INPUT_RATE", "5")), float(os.getenv("LARGE_OUTPUT_RATE", "25"))),  # Opus-tier
 }
 
 # --- Tier 1: the free heuristic -------------------------------------------

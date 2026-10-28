@@ -62,7 +62,7 @@ Call it 4-5 times in a row and watch `search`'s circuit open once it fails 3 tim
 
 - **`asyncio.TimeoutError`'s `str()` is empty** — a real gotcha this example ran into: catching it and returning `str(e)` as the error message produces `{"error": ""}`, which tells the caller nothing. The fix is to build a real message (`f"{name} timed out after {TIMEOUT_SECONDS}s"`) rather than trust the exception's string form.
 - **The circuit breaker is per-tool, not global** — `search` opening its circuit has no effect on `weather` or `calc`. A systemic outage (all three failing) would open all three circuits independently, which is the correct behavior: each dependency's health is tracked separately.
-- **`calc` uses a bare `eval()`** — deliberately, because this is a local demo with no untrusted input reaching it. [`stage12-guardrails`](../stage12-guardrails/) builds the sandboxed version of the same idea for when a code-execution tool's input might be adversarial — read that one before reusing `eval()` anywhere real.
+- **`calc` uses a bounded arithmetic interpreter** — numeric literals and `+ - * / // %` only. Calls, attributes, oversized inputs, and excessive magnitudes are rejected. An HTTP request is untrusted even in a local demo.
 - **`asyncio.gather()` runs all three tools concurrently, not sequentially** — the whole endpoint's latency is bounded by the *slowest* tool call, not the sum of all three. This is the actual point of the stage: a blocking, sequential version of this endpoint would take 3x as long even when nothing fails.
 
 ## Where this goes next

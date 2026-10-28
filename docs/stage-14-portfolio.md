@@ -2,17 +2,34 @@
 
 # Stage 14 — Open Source + Portfolio
 
+## First pass
+
+**Before this lesson:** One finished project with recorded success and failure checks.
+
+**Do now:** Use the portfolio checklist to document the problem, setup, architecture, limitations, and a repeatable demo.
+
+**Try it yourself:** Ask someone to follow the setup with a fresh environment and no access to your local files or credentials.
+
+**Check your understanding:** They can run it, observe a failure path, and understand the limits. Only claim checks you actually ran.
+
+**Later:** Public hosting and open-source contributions; a reproducible local project is a valid first milestone.
+
+**Next in the beginner path:** finish the portfolio checklist, then choose an extension from the [learning path](../README.md#extensions-after-the-first-agent).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Ship autonomous agents publicly · write architecture docs · record demos · contribute to libs
 
 ## Why this matters
 
-Everything in Stages 1–13 is proof of skill only once someone else can see it working. A portfolio piece that's live, documented, and has a recorded failure mode you fixed is worth more than a private repo — it shows judgment under real constraints, not just code that runs once.
+A finished project should let another person understand your choices and reproduce your results. A documented local demo with a recorded failure path is a useful first milestone; public hosting is optional.
 
 ## Brief
 
-Take the agent built across Stages 5–13 and ship it: public repo, a README with an architecture diagram, a 3–5 minute demo recording including a deliberately induced failure (rate limit, bad tool call) and how it degrades. Then make one real contribution to a library you used (LangGraph, CrewAI, an MCP server) — a docs fix counts as a start.
+Choose one working example or your own integrated project. Write setup instructions, an architecture diagram, limitations, and the checks you ran. Record a short demo including an induced failure and recovery. Optionally publish it or contribute a documentation improvement to a library you used; review credentials, data permissions, and licensing before sharing.
 
-**Checklist + templates:** [`examples/stage14-portfolio/`](../examples/stage14-portfolio/) turns this brief into an actual checklist, an architecture-doc template, and a demo-recording checklist — plus a table mapping each requirement to an already-built, already-verified example elsewhere in this repo (a failure mode to demo, evidence of testing, evidence of observability) so shipping doesn't mean starting a fourteenth project from scratch.
+**Checklist + templates:** [`examples/stage14-portfolio/`](../examples/stage14-portfolio/) turns this brief into an actual checklist, an architecture-doc template, and a demo-recording checklist — plus a table mapping each requirement to an existing example elsewhere in this repo (a failure mode to demo, evidence of testing, evidence of observability) so shipping doesn't mean starting a fourteenth project from scratch.
 
 ## Sources
 

@@ -2,6 +2,23 @@
 
 # Stage 07 — Single-Agent Workflows
 
+## First pass
+
+**Before this lesson:** Stage 03 raw tool-calling loop. Memory and RAG are not required for the first pass.
+
+**Do now:** Run the ReAct-loop example; follow its retry and stopping branches with a normal request and an impossible one.
+
+**Try it yourself:** Reduce the step budget and check that exhaustion returns an honest failure or partial result.
+
+**Check your understanding:** Explain which decisions belong to the model and which limits are enforced by Python.
+
+**Later:** Long-running agents, planning variants, cognitive architectures, computer use, and voice.
+
+**Next in the beginner path:** [Stage 04](stage-04-memory-state.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Workflow patterns · ReAct loops · Tree-of-Thought · self-reflection · iteration limits · graceful degradation · cognitive architecture (confidence gating, attention, knowledge boundaries) · harness/loop/graph engineering
 
 ## Why this matters

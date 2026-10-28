@@ -10,19 +10,15 @@ This is the smallest thing that's honestly an *agent* and not just an API call: 
 
 - **One tool**: a calculator (`calculate`), implemented with a safe AST-based evaluator — not `eval()`.
 - **One loop**: send messages → if the model asks for a tool, run it and send the result back → repeat, capped at `MAX_ITERATIONS` so it can't run forever.
-- **~120 lines total.** Read `agent.py` top to bottom; nothing in it is hidden.
+- Read the local branch first; the hosted branch teaches the same loop with another provider's message format.
 
-This is an **AI agent**, not agentic AI — see the [distinction in the main README](../../README.md#ai-agent-vs-agentic-ai--the-distinction-that-matters). It has one role, one bounded task, and stops when it has an answer. It does not plan, delegate, or pursue a goal across multiple sessions.
+This is a small agentic program: one model chooses whether to use one tool. Multiple agents are optional; see the [course definition](../../README.md#what-you-are-learning).
 
 ## Run it
 
 Managed with [`uv`](https://docs.astral.sh/uv/) — `uv run` creates an isolated virtualenv, installs the locked dependencies, and runs the script in one step, so there's no separate "activate your venv" ritual.
 
-Copy `.env.example` to `.env` once, at the repo root — every example picks it up automatically:
-
-```bash
-cp ../../.env.example ../../.env   # from this directory, or just edit the repo-root .env.example
-```
+No `.env` is needed for the local default. For optional configuration, follow the [setup guide](../../docs/start-here.md#configuration-without-losing-existing-settings); preserve any existing `.env`.
 
 **Local (default, free):**
 
@@ -34,7 +30,7 @@ uv run agent.py "What is 23 * 47, plus 100, all divided by 3?"
 
 **Claude API instead:** set `USE_LOCAL_MODEL=false` and `ANTHROPIC_API_KEY=sk-ant-...` in `.env`, then run the same command.
 
-The first run downloads dependencies into a local `.venv/` (git-ignored) per the pinned versions in `uv.lock`; every run after that is instant. No `pip install` step, no manual venv activation.
+The first run downloads dependencies into a local `.venv/` (git-ignored) per the pinned versions in `uv.lock`; later runs reuse those dependencies; inference still takes time. No `pip install` step, no manual venv activation.
 
 `agent.py` loads `../../.env` via `python-dotenv` at startup — no `export` needed in your shell. Exporting the same variables in your shell still works and takes precedence if both are set.
 
@@ -63,7 +59,7 @@ Try it without a math question too (`uv run agent.py "What's the capital of Fran
 ## What to look at closely
 
 - **`messages.append({"role": "assistant", "content": response.content})`** — the full content list is appended, not just the text. Drop the `tool_use` blocks here and the next request breaks, because a `tool_result` with no matching `tool_use_id` in history is invalid.
-- **`tool_results` collected before appending** — if a turn requests multiple tools, all their results go back in a *single* user message. Splitting them across messages silently trains the model to stop batching tool calls.
+- **`tool_results` collected before appending** — if a turn requests multiple tools, all their results go back in a *single* user message. Follow the provider's required tool-result message format; ordinary inference does not retrain model weights.
 - **`MAX_ITERATIONS`** — this is the "graceful degradation" concept from [Stage 7](../../docs/stage-07-single-agent.md): an agent that can loop forever on a flaky tool is a liability, not a feature.
 - **AST whitelist, not `eval()`** — the model's tool input is untrusted text. `calculate()` only ever evaluates arithmetic node types; anything else raises before it's touched.
 - **`_extract_written_out_tool_call()` (local path only)** — a real failure mode worth knowing before you trust a small local model: on a multi-step task, Llama 3.2 3B sometimes writes a *second* tool call as plain text (`{"name": "calculate", "parameters": {"expression": "..."}}` inside its response) instead of actually issuing it, after already calling the tool once — usually with the correct expression already sitting right there. Rather than asking the model to retry (which risks getting a *different*, sometimes worse, response the second time — an earlier version of this file did that and it wasn't reliable), this parses the well-formed JSON directly and runs `calculate()` on it, then continues the loop as if it had been a real tool call. It's deliberately strict: only fires on a clean parse with the exact expected shape (the right tool name, the right key) — anything messier (broken JSON escaping, a nonexistent tool name, the model doing math in prose with no JSON at all) is left alone and returned as plain text, same as if this check didn't exist. Claude doesn't need this: its `tool_use` is a structured response field, not something it can write out as prose instead.
@@ -77,4 +73,4 @@ Try it without a math question too (`uv run agent.py "What's the capital of Fran
 
 ## Where this goes next
 
-This single agent is the building block for **agentic AI** (Stage 8): once you have one agent that reliably loops, the next step is wiring two of them together — e.g. a "planner" agent that breaks a task into sub-tasks and a "worker" agent (this same loop) that executes each one, coordinated by a supervisor. Stage 6's shared-session pattern is how they'd actually communicate. That two-agent handoff is a natural `examples/stage08-two-agent-handoff/` to build once Stages 6–8 in the main roadmap feel solid — not included yet, since it's meant to be *your* next exercise, not another script to read.
+Continue to [Stage 07](../../docs/stage-07-single-agent.md) for bounded control and failures, then memory and sessions in the [beginner flow](../../README.md#the-learning-flow). For framework comparisons, use [LangChain](../stage03-tool-calling-langchain/) and then [LangGraph](../stage03-tool-calling-langgraph/). The existing [supervisor example](../stage08-supervisor-langgraph/) is an optional later extension.

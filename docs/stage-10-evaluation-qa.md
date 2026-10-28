@@ -2,6 +2,23 @@
 
 # Stage 10 — Evaluation + Quality Assurance
 
+## First pass
+
+**Before this lesson:** One working agent and basic logs; the Stage 11 topic helps with trajectory checks.
+
+**Do now:** Run the small harness, inspect its cases and rubric, then add a failure case from your own agent.
+
+**Try it yourself:** Deliberately break expected behavior and check the verdict and exit status. Review judge decisions manually.
+
+**Check your understanding:** Use deterministic assertions for tool behavior and show a regression being caught. A second model can still be a biased judge.
+
+**Later:** Larger datasets, trajectory judges, public benchmarks, and statistical analysis.
+
+**Next in the beginner path:** [Stage 13](stage-13-deployment.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Automated eval harnesses · LLM-as-a-judge · regression testing · hallucination metrics · named agent benchmarks
 
 ## Why this matters
@@ -32,7 +49,7 @@ def judge(expected: str, actual: str) -> JudgeVerdict:
     )
 ```
 
-**Runnable version:** [`examples/stage10-eval-harness/`](../examples/stage10-eval-harness/) builds this exact `JudgeVerdict` shape against a 10-case golden dataset, using **two different local models** — one under test, one judging — so the pass rate isn't inflated by a model grading its own answers. Includes a `--baseline` flag for CI use. Runs entirely on Ollama.
+**Runnable version:** [`examples/stage10-eval-harness/`](../examples/stage10-eval-harness/) builds this exact `JudgeVerdict` shape against a 10-case golden dataset, using **two different local models** — one under test, one judging — to reduce direct self-grading; a different model still needs calibration against human labels. Includes a `--baseline` flag for CI use. Runs entirely on Ollama.
 
 ## Sources
 
@@ -42,7 +59,7 @@ def judge(expected: str, actual: str) -> JudgeVerdict:
 | Tool | [Arize Phoenix — open-source eval & tracing](https://github.com/Arize-ai/phoenix) |
 | Guide | [Hands-on comparison: LangSmith, Langfuse, Arize evals](https://www.analyticsvidhya.com/blog/2026/06/agent-observability-with-langsmith-langfuse-arize/) |
 | Concept | Search "LLM-as-judge rubric design" — avoid single-score judges, use structured multi-criteria rubrics |
-| Survey | [LangChain — State of Agent Engineering (2025)](https://www.langchain.com/state-of-agent-engineering) — source for the 89%/52% observability-vs-eval gap above |
+| Survey | [LangChain — State of Agent Engineering (2025)](https://www.langchain.com/state-of-agent-engineering) — optional background on industry adoption |
 | Benchmark | [Terminal-Bench](https://www.tbench.ai/) — hand-verified terminal/coding-agent tasks, Stanford/Laude Institute |
 | Benchmark | [Recovery-Bench (Letta)](https://github.com/letta-ai/recovery-bench) — measures recovery from corrupted/erroneous context, not just task success |
 
@@ -80,10 +97,6 @@ Judges have known, documented biases worth designing against:
 - **Leniency drift** — judges skew toward passing when a rubric is vague, which is exactly why the brief specifies structured boolean criteria rather than "rate 1–10."
 
 **The validation step itself, once, before you rely on the number:** hand-label 20–30 cases yourself, run the judge over the same cases, and measure agreement. If the judge agrees with you on fewer than ~80% of cases, fix the rubric before fixing the agent — you're currently optimizing against a broken measuring instrument. Re-run this check whenever you change the judge model or the rubric, and keep the hand-labeled set: it's the eval suite *for your eval suite*.
-
-## The observability/eval gap is real, and it's wide
-
-LangChain's "State of Agent Engineering" survey (Nov–Dec 2025, 1,340 respondents) found 89% of teams running production agents have implemented some form of observability, but only ~52% run offline evals — a 37-point gap between "we can see what the agent did" and "we systematically check whether it did the right thing." Watching an agent isn't the same as testing it; this stage's golden-dataset brief is specifically the less-adopted half of that pair, worth prioritizing precisely because it's the one most teams skip.
 
 ## Named benchmarks worth knowing (not building)
 

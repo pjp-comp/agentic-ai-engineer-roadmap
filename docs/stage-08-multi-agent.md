@@ -2,11 +2,28 @@
 
 # Stage 08 — Multi-Agent Orchestration
 
+## First pass
+
+**Before this lesson:** Stages 03, 06, and 07 plus the LangGraph calculator comparison; keep a single-agent baseline.
+
+**Do now:** Run the supervisor example and map each node to its role and shared state fields.
+
+**Try it yourself:** Inspect a critic rejection and check the retry bound. Compare call count and output with a single-agent solution.
+
+**Check your understanding:** Justify a role boundary with evidence; show how routing stops and how each handoff is validated.
+
+**Later:** Framework catalogs, external agent protocols, commerce protocols, and advanced topologies.
+
+**Extension:** return to the [learning path](../README.md#the-learning-flow) when this topic meets your project's needs.
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Framework landscape (LangGraph/CrewAI/ADK/OpenAI Agents SDK/Pydantic AI/Mastra) · graph engineering (topology, node types, failure isolation) · supervisor patterns · message passing · conflict resolution · handoffs + inline guardrails · A2A cross-agent protocol + AAIF governance · adjacent commerce protocols (AP2/x402/UCP)
 
 ## Why this matters
 
-Splitting work across specialized agents buys focused prompts and parallelism, but costs roughly 3× the tokens of one mega-agent for the coordination overhead — so it's a tool for genuinely decomposable tasks, not a default. Start with the supervisor pattern: one router LLM, deterministic Python for the actual routing logic.
+Splitting work across specialized agents buys focused prompts and parallelism, but can increase tokens and latency through coordination overhead — so it's a tool for genuinely decomposable tasks, not a default. Start with the supervisor pattern: one router LLM, deterministic Python for the actual routing logic.
 
 This stage is the **graph** layer in the harness/loop/graph framework introduced in [Stage 7](stage-07-single-agent.md#harness-loop-and-graph--the-current-framing-for-how-agents-get-built) — deciding whether one agent handles everything or several split the work. Reach for it only after Stage 7's harness and loop are solid for a single agent; a graph doesn't fix an unreliable loop, it just runs that same unreliable loop in more places at once.
 
@@ -66,7 +83,7 @@ The reframing: **a sub-agent is a way to spend tokens without spending context.*
 Two practical constraints, both learned the hard way:
 
 - **Sub-agents can't see the parent's context, and that's the point** — but it means the parent must pass down *everything* the sub-agent needs in its task description. An under-specified sub-agent task is the single most common source of "why did the sub-agent do something irrelevant."
-- **Fan-out is where cost actually explodes.** Stage 8's "~3× tokens" warning assumes a handful of agents. Spawning one sub-agent per search result turns a single task into dozens of loops. Cap the fan-out width explicitly the way [Stage 7](stage-07-single-agent.md) caps loop iterations — and use a cheap model for the workers, since summarizing one document is exactly the kind of task that doesn't need a frontier model.
+- **Fan-out is where cost actually explodes.** Coordination overhead depends on the number of agents and their call patterns. Spawning one sub-agent per search result turns a single task into dozens of loops. Cap the fan-out width explicitly the way [Stage 7](stage-07-single-agent.md) caps loop iterations — and use a cheap model for the workers, since summarizing one document is exactly the kind of task that doesn't need a frontier model.
 
 This is also why the **join** node in the node-type table below matters more than it first appears: a fan-out without a join is just N agents doing work nobody collects.
 
@@ -109,7 +126,7 @@ None of this is mature enough to be a "learn this next" recommendation the way M
 
 Stage 7 named "graph" as one of three structural layers (harness/loop/graph) and pointed here. This section is the actual depth: why the shape of a multi-agent system is something you design deliberately, not something that falls out naturally from "add more agents." Treat this as an emerging framing, not a settled standard — the vocabulary below (nodes, node failure isolation, dynamic node spawning) is still being formalized across the field in 2026, and different sources use overlapping but not identical terms for the same ideas.
 
-**Why it's required, not optional, past a certain point.** A two-agent supervisor (this stage's brief) barely needs "graph engineering" as a discipline — the topology is obvious, there's one router and two workers. The discipline earns its name once a system has enough nodes that the topology itself becomes a source of bugs: which node can call which, what happens when a node fails mid-graph, whether two branches can run concurrently and race on shared state. At that point the graph's *shape* is doing real architectural work, and treating it as an afterthought (just wire nodes together until it works) is where most of Stage 8's "3× token cost for coordination overhead" warning actually comes from — a badly-shaped graph doesn't just cost more, it fails in ways that are hard to reproduce.
+**Why it's required, not optional, past a certain point.** A two-agent supervisor (this stage's brief) barely needs "graph engineering" as a discipline — the topology is obvious, there's one router and two workers. The discipline earns its name once a system has enough nodes that the topology itself becomes a source of bugs: which node can call which, what happens when a node fails mid-graph, whether two branches can run concurrently and race on shared state. At that point the graph's *shape* is doing real architectural work, and treating it as an afterthought (just wire nodes together until it works) is where most of this stage's coordination-overhead warning actually comes from — a badly-shaped graph doesn't just cost more, it fails in ways that are hard to reproduce.
 
 **What counts as a node.** Not every node is an agent. A real work graph mixes:
 

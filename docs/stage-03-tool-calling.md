@@ -2,6 +2,23 @@
 
 # Stage 03 — Tool Calling + Structured Outputs
 
+## First pass
+
+**Before this lesson:** Stage 02 vocabulary and Python exceptions.
+
+**Do now:** Run `stage03-tool-calling`, then read its local-model loop. Trace one arithmetic request and one direct answer.
+
+**Try it yourself:** Request division by zero and inspect how a tool error is returned to the model.
+
+**Check your understanding:** Point to the schema, dispatch, tool-result message, and loop cap; explain why schema-valid arguments can still be wrong.
+
+**Later:** MCP, skills, computer use, web search, and multiple tools. For LangGraph examples later, compare raw SDK → LangChain → LangGraph first.
+
+**Next in the beginner path:** [Stage 07](stage-07-single-agent.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Pydantic validation · function calling schemas · error recovery · dynamic tool discovery · MCP vs. plain APIs · Skills and progressive disclosure · computer-use tools
 
 ## Why this matters
@@ -33,7 +50,7 @@ try:
 except ValidationError as e:
     # feed e back to the model as a tool_result error
     # so it can retry with corrected arguments
-    return {"role": "tool", "content": str(e), "is_error": True}
+    return {"error": str(e)}  # dispatch layer wraps this in the provider's tool-result format
 ```
 
 ## Sources

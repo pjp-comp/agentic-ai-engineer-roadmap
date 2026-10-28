@@ -2,6 +2,23 @@
 
 # Stage 06 — Sessions, State + Events
 
+## First pass
+
+**Before this lesson:** Stage 04 memory; the Stage 03 graph comparison only for the LangGraph variant.
+
+**Do now:** Run `stage06-sessions-plain`; create two sessions and inspect their stored events.
+
+**Try it yourself:** Resume one session in a new process; confirm it does not acquire the other session's history.
+
+**Check your understanding:** Explain session identifier, current state, and event history using actual saved records.
+
+**Later:** Shared multi-agent sessions and the LangGraph comparison. A checkpoint alone cannot prevent repeating an external side effect.
+
+**Next in the beginner path:** [Stage 12](stage-12-security-guardrails.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 The session object · state vs. events · an in-memory session service · updating context mid-run · inter-agent communication via a shared session
 
 ## Why this matters

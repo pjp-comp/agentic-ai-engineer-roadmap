@@ -1,67 +1,71 @@
-[← Stage 11](stage-11-observability.md) · Stage 12 of 14 · **Next:** [Stage 13 →](stage-13-deployment.md)
+[← Stage 11](stage-11-observability.md) · Stage 12 of 14 · [Next: Stage 13 →](stage-13-deployment.md)
 
-# Stage 12 — Security + Guardrails
+# Stage 12 — Security and Guardrails
 
-Prompt injection defense · agentic-specific risks (goal hijacking, memory poisoning, cascading failures) · red-teaming · output filtering · PII redaction · sandboxed execution · compliance
+## First pass
+
+**Before this lesson:** Stage 03 tool dispatch; read this before giving any tool real side effects.
+
+**Do now:** Run the guardrails example and distinguish deterministic permission blocks from model-dependent injection resistance.
+
+**Try it yourself:** Try a forbidden role/tool pair, an unknown role, and an expression containing a function call. All must be rejected by code.
+
+**Check your understanding:** Show that unauthorized tools never execute. Explain why pattern matching and content labels do not prove injection safety.
+
+**Later:** Adversarial campaigns, memory poisoning, and production execution isolation. The calculator accepts a bounded arithmetic grammar; it is not a general code sandbox.
+
+**Next in the beginner path:** [Stage 09](stage-09-human-in-the-loop.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 
 ## Why this matters
 
-Prompt injection has held the #1 spot on OWASP's LLM Top 10 across every edition. Once an agent has tools with real side effects, untrusted content (a webpage, an email, a file) becomes an attack surface. Assume the model will occasionally be tricked, and design containment — least-privilege tools, output validation, sandboxing — rather than relying on the model to "just not fall for it."
-
-## Beginner focus
-
-- Detect and flag prompt-injection patterns in tool output.
-- Use a strict tool allowlist per role.
-- Block high-risk actions by default.
-- Add full red-teaming after baseline guardrails work.
+A tool result, retrieved document, or stored fact can contain instructions written by someone other than the user. Treat that material as untrusted data. Assume a model can follow a malicious instruction despite a well-written prompt, and enforce permissions in application code.
 
 ## Brief
 
-Add a guard layer: strip/flag instructions found inside tool-returned content before it re-enters the prompt, enforce a tool allowlist per agent role, and run any code-execution tool in a sandboxed subprocess with no filesystem/network access by default.
+Build three separate controls:
 
-```python
-def sanitize_tool_output(text: str) -> str:
-    if INJECTION_PATTERNS.search(text):
-        log_security_event("possible_injection", text)
-    return wrap_as_untrusted_data(text)  # tag so the model
-    # is instructed to treat it as data, never as instructions
-```
+1. Label untrusted tool output and log suspicious patterns. Pattern matching misses paraphrases and can flag harmless quotations; it is a diagnostic signal.
+2. Check an authenticated caller's allowed tool names and argument scope **before execution**. A role supplied by the model is not an authenticated identity.
+3. For a calculator, accept a small arithmetic grammar rather than executing Python. General code execution requires a separately designed isolation boundary.
 
-**On "sandboxed" — the subprocess in this brief is a teaching boundary, not a production one.** Building it yourself is the right first step because it forces you to be explicit about what the untrusted code may touch. But a subprocess (and even a plain container) shares a kernel with the host, so it does not contain genuinely adversarial code. [Stage 13's sandboxing section](stage-13-deployment.md#agent-native-infrastructure--what-agents-need-that-ordinary-services-dont) covers what to graduate to — gVisor, Firecracker microVMs, or a hosted sandbox — and the rule for when: if the code was written by a model, or its arguments were chosen by one, a container alone is not enough.
+**Runnable version:** [stage12-guardrails](../examples/stage12-guardrails/) demonstrates labels, a hard-coded role allowlist, and a bounded arithmetic interpreter. The roles and order backend are mocks. It does not implement user authentication, PII redaction, or a general code sandbox.
 
-**Runnable version:** [`examples/stage12-guardrails/`](../examples/stage12-guardrails/) builds all three pieces of this brief for real — injection detection + neutralization, a per-role tool allowlist enforced in code, and a genuinely sandboxed subprocess for code execution — then runs five scenarios including the actual "ignore previous instructions" attack this stage's "Done when" names. Runs entirely on Ollama.
+## What labeling does and does not prove
+
+The demo retains tool text inside an untrusted-content label. This communicates intent to the model but does not remove malicious instructions or prevent a model from obeying them. A successful answer on the included attack is one observation, not proof of injection prevention. Keep secrets out of prompts, minimize tool privileges, validate results, and require approval for consequential actions.
 
 ## Beyond prompt injection — risks specific to agentic systems
 
-The OWASP LLM Top 10 above is written for single-model applications. Once an agent has memory, tools, and (per Stage 8) other agents to coordinate with, a separate list applies: the **OWASP Top 10 for Agentic Applications** (endorsed by NIST, Microsoft, and NVIDIA). The risks that don't reduce to "sanitize tool output" from this stage's brief:
+- **Goal hijacking:** untrusted content redirects the task.
+- **Memory poisoning:** a malicious or incorrect fact persists into later sessions.
+- **Unsafe handoffs:** one agent treats another agent's output as privileged instructions.
+- **Cascading failures:** an unchecked mistake becomes input to several later actions.
 
-- **Goal hijacking** — an attacker doesn't inject a command, they gradually redirect what the agent believes its objective is, across multiple turns, so no single message looks like an attack.
-- **Memory poisoning** — false or malicious data written into the [Stage 4](stage-04-memory-state.md) long-term store persists and re-surfaces in future, unrelated sessions — the injection payload outlives the conversation that planted it.
-- **Insecure inter-agent communication** — in a [Stage 8](stage-08-multi-agent.md) multi-agent system, a compromised or malicious agent can feed poisoned state to others that trust it by default (the shared-session model has no built-in notion of "don't trust this sender").
-- **Cascading multi-agent failures** — one agent's bad output becomes another agent's bad input becomes a third agent's bad decision; a fault that would be a single bad answer in a single-agent system compounds across a pipeline.
-- **Rogue agents** — an agent whose persisted state (session, memory) has been subtly corrupted keeps acting on that corrupted state across restarts, looking healthy from the outside.
-
-None of these are hypothetical add-ons — they're what "prompt injection" turns into once an agent has memory that outlives a conversation and peers it trusts by default. Worth a deliberate pass once Stages 4, 6, and 8 are in place, not just this stage's tool-output sanitization in isolation.
+Validate source provenance and permissions at every handoff. Give stored facts correction and deletion paths. Use [Stage 04](stage-04-memory-state.md) for memory lifetimes and [Stage 09](stage-09-human-in-the-loop.md) for approval gates.
 
 ## Testing for these — red-teaming, not just eval
 
-[Stage 10](stage-10-evaluation-qa.md)'s golden-dataset eval catches *regressions on known-good behavior*. It does not catch *an adversarial user actively trying to break the agent* — that's a different exercise: automated red-teaming, where an attacker-LLM generates adversarial multi-turn conversations specifically designed to trigger goal hijacking, memory poisoning, or injection, and every finding that succeeds gets converted into a permanent regression test in the Stage 10 suite so the same attack can never work twice. Treat this stage's "Done when" (a single injection attempt gets neutralized) as the starting bar, not the finish line — a real red-team pass tries many variations, not one.
+Run both legitimate requests and adversarial variations. Assert deterministic properties first: a forbidden tool never executes, unknown roles have no permissions, and invalid arithmetic syntax is rejected. Then inspect model behavior under injected tool text and poisoned memories. Keep successful attacks as regression cases in [Stage 10](stage-10-evaluation-qa.md), document remaining failures, and rerun after changes. Passing a finite test set is not a universal safety guarantee.
+
+## Execution boundaries
+
+An ordinary subprocess inherits host capabilities; removing `__builtins__` from `eval` does not turn Python into a secure language sandbox. The demo avoids that approach entirely. Its calculator interprets numeric literals, parentheses, and `+ - * / // %`, with input, tree-size, and magnitude limits. It rejects calls, attributes, imports, and exponentiation. This narrows the accepted language; it does not isolate arbitrary code.
+
+For actual generated-code execution, define filesystem, network, credential, CPU, memory, and process limits and choose an isolation technology appropriate to that threat model. See [Stage 13](stage-13-deployment.md#agent-native-infrastructure--what-agents-need-that-ordinary-services-dont).
 
 ## Sources
 
-| Type | Resource |
-|------|----------|
-| Standard | [OWASP Top 10 for LLM Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/) — the vendor-neutral reference for tool-use and LLM-application risk; treat this as ground truth over any single provider's guidance |
-| Standard | [OWASP Top 10 for Agentic Applications — full guide](https://www.aikido.dev/blog/owasp-top-10-agentic-applications) |
-| Guide | [Prompt Injection in 2026 — OWASP's #1 LLM threat](https://www.kunalganglani.com/blog/prompt-injection-2026-owasp-llm-vulnerability) |
-| Docs | [Claude Platform Docs — safe tool-use design](https://platform.claude.com/docs/en/build-with-claude/tool-use) — one provider's mitigation guidance on top of the OWASP standard above, not a substitute for it |
-| Tool | NeMo Guardrails, LLM-Guard, Llama Guard 3 — off-the-shelf guardrail frameworks |
-| Repo | [LLMSecurityGuide — OWASP GenAI risks, red-teaming tool catalog](https://github.com/requie/LLMSecurityGuide) |
-| Guide | [Confident AI — best AI red-teaming tools 2026](https://www.confident-ai.com/knowledge-base/compare/best-ai-red-teaming-tools-2026) |
+- [Python built-in functions: eval](https://docs.python.org/3/library/functions.html#eval) — arbitrary code execution and untrusted-input risks.
+- [OWASP LLM application risks](https://owasp.org/www-project-top-10-for-large-language-model-applications/) — threat categories and mitigation guidance.
+- [Anthropic tool-use documentation](https://platform.claude.com/docs/en/build-with-claude/tool-use) — provider-specific tool contracts; consult the version matching your dependencies.
 
 ## Done when
 
-A tool result containing "ignore previous instructions and…" gets logged and neutralized, not obeyed — and a red-team pass covering at least goal hijacking and memory poisoning produces zero new successful attacks, or every successful one has become a permanent regression test.
+Show a denied tool call blocked before execution, an invalid expression rejected by the interpreter, and an injection attempt recorded and assessed. Explain which controls are enforced by code and which outcomes still depend on the model. Record unresolved risks rather than declaring the system injection-proof.
 
 ---
-[← Stage 11 — Observability + Tracing](stage-11-observability.md) · [Back to roadmap](../README.md) · **Next:** [Stage 13 — Production Deployment →](stage-13-deployment.md)
+[Back to learning path](../README.md) · [Next: Stage 13 →](stage-13-deployment.md)

@@ -2,6 +2,23 @@
 
 # Stage 09 — Human-in-the-Loop Systems
 
+## First pass
+
+**Before this lesson:** Tool permissions from Stage 12, session persistence from Stage 06, and the Stage 03 LangGraph comparison. Stage 08 is optional.
+
+**Do now:** Run the simulated refund example. Inspect the pending action before approving it.
+
+**Try it yourself:** Reject one request and approve another from a new process using the printed identifiers.
+
+**Check your understanding:** Rejection causes no action; resumption uses the reviewed arguments. Explain the example's authentication and retry limitations.
+
+**Later:** Production reviewer identity, expiry, queues, escalation, and external approval services.
+
+**Next in the beginner path:** [Stage 11](stage-11-observability.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Uncertainty detection · the four intervention patterns · approval gates · deciding what needs a human · audit trails · resume logic · the operational cost of asking
 
 ## Why this matters

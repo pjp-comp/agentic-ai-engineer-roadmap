@@ -2,6 +2,23 @@
 
 # Stage 01 — Python + Async Foundations
 
+## First pass
+
+**Before this lesson:** Python functions, dictionaries, exceptions, and terminal commands.
+
+**Do now:** Run the async fan-out example; call `/query` several times and identify the result from each tool.
+
+**Try it yourself:** Change one mock tool to raise `ToolError` consistently. Check that the response still includes successful tools.
+
+**Check your understanding:** Explain concurrency versus parallelism, then show partial results after a timeout.
+
+**Later:** Circuit-breaker tuning and extra service features.
+
+**Next in the beginner path:** [Stage 02](stage-02-llm-fundamentals.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 `asyncio` · `FastAPI` · event-driven architecture · error handling · API integration patterns
 
 ## Why this first

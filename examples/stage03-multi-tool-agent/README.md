@@ -12,7 +12,7 @@ Same ReAct loop as [`examples/stage03-tool-calling/`](../stage03-tool-calling/),
 - **One loop**: identical shape to example 01 — send messages → if the model asks for a tool (or several), run them and send results back → repeat, capped at `MAX_ITERATIONS`.
 - **A dispatch table** (`_DISPATCH`) instead of an `if/elif` chain — this is the one structural difference from example 01, and it's the natural shape once you have more than two or three tools.
 
-This is still an **AI agent**, not agentic AI — see the [distinction in the main README](../../README.md#ai-agent-vs-agentic-ai--the-distinction-that-matters). More tools doesn't mean more autonomy; it's still one model, one bounded task, one loop.
+This is a single-agent agentic program with several tools. More tools do not necessarily mean more autonomy; see the [course definitions](../../README.md#what-you-are-learning).
 
 ## Run it
 

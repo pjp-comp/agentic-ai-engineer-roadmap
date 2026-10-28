@@ -2,13 +2,30 @@
 
 # Stage 05 — RAG + Retrieval
 
+## First pass
+
+**Before this lesson:** Stage 03 tools and its LangGraph comparison; basic file handling.
+
+**Do now:** Start with the text RAG example and its synthetic corpus. Read the indexing and query paths separately.
+
+**Try it yourself:** Ask one question supported by the corpus and one outside it. Inspect retrieved chunks and the refusal path.
+
+**Check your understanding:** Show source evidence for an answer and refusal when supporting evidence is missing. A relevance grade is not a correctness guarantee.
+
+**Later:** Multimodal PDFs, retrieval variants, and the news-storyline design case. RAG can also use keyword retrieval without embeddings.
+
+**Extension:** return to the [learning path](../README.md#the-learning-flow) when this topic meets your project's needs.
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Vector databases · chunking · naive vs. hybrid vs. agentic RAG · corrective RAG (CRAG) · retrieval vs. tool calls
 
 ## Why this matters
 
 Stage 4 covered vector stores as *memory* — recalling facts an agent itself wrote down. RAG is a related but distinct problem: giving an agent access to a large body of **external** documents (news articles, filings, manuals, a knowledge base) it did not write, so it answers from real content instead of the model's training data or a hallucinated guess.
 
-**The mistake to avoid going in:** RAG is not the answer to every "the agent needs data" problem. If the data is structured and precise — a stock price, a database row, an API response — that's a **tool call** (Stage 3), not RAG. Vector search finds text that's *semantically similar* to a query; it does not guarantee the *numerically correct* answer. Reach for RAG when the question is "what does this large body of text say," and reach for a tool when the question is "what is the current exact value of X."
+**The mistake to avoid going in:** RAG is not the answer to every "the agent needs data" problem. If the data is structured and precise — a stock price, a database row, an API response — that's a **tool call** (Stage 3), not RAG. Vector search finds similar content; it does not guarantee relevance or numerical correctness. RAG can use keyword search, structured filters, or vectors, and structured API results can also supply evidence. Reach for RAG when the question is "what does this large body of text say," and reach for a tool when the question is "what is the current exact value of X."
 
 ## The RAG architecture spectrum
 
@@ -16,10 +33,10 @@ RAG isn't one design — it's a family, each layering more control (and cost) on
 
 | Type | What changes | Needs vectors? | Reach for it when |
 |---|---|---|---|
-| **Naive RAG** | The baseline loop: chunk docs, embed, retrieve top-k, stuff into the prompt | Yes | Getting started, FAQ-style lookups, small-to-moderate document sets |
-| **Advanced/Hybrid** | Adds query rewriting, hybrid keyword+vector search (BM25 + embeddings), re-ranking | Yes | Production retrieval quality — pure semantic search misses exact terms like ticker symbols |
-| **Agentic RAG** | Retrieval becomes a decision loop: search → judge "is this enough?" → retry or reroute | Yes | Ambiguous or multi-step questions, multiple data sources |
-| **Corrective RAG (CRAG)** | The model **grades** retrieved chunks before trusting them; falls back if they're weak | Yes | Reducing hallucinations when the knowledge base has gaps — this is the one worth prioritizing for anything finance- or fact-sensitive |
+| **Naive RAG** | The baseline loop: chunk docs, embed, retrieve top-k, stuff into the prompt | In this example | Getting started, FAQ-style lookups, small-to-moderate document sets |
+| **Advanced/Hybrid** | Adds query rewriting, hybrid keyword+vector search (BM25 + embeddings), re-ranking | In this example | Production retrieval quality — pure semantic search misses exact terms like ticker symbols |
+| **Agentic RAG** | Retrieval becomes a decision loop: search → judge "is this enough?" → retry or reroute | In this example | Ambiguous or multi-step questions, multiple data sources |
+| **Corrective RAG (CRAG)** | The model **grades** retrieved chunks before trusting them; falls back if they're weak | In this example | Reducing hallucinations when the knowledge base has gaps — this is the one worth prioritizing for anything finance- or fact-sensitive |
 | **Graph RAG** | Retrieves by traversing entity relationships, not just similarity | Optional | Multi-hop questions where *relationships* carry the answer |
 | **Vectorless (PageIndex)** | No embeddings — the LLM reasons over a document's structure (table of contents) to pick a section | No | Long, well-structured documents (10-K filings, manuals, contracts) |
 

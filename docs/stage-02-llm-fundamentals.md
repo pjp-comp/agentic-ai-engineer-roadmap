@@ -2,6 +2,23 @@
 
 # Stage 02 — LLM Fundamentals for Agents
 
+## First pass
+
+**Before this lesson:** Basic Python; Stage 01 helps with slow API calls.
+
+**Do now:** Run `stage02-sampling-params` with its `qwen3:1.7b` model. Compare repeated outputs at low and high temperature.
+
+**Try it yourself:** Keep the prompt fixed and vary only one sampling parameter. Record variation instead of assuming determinism.
+
+**Check your understanding:** Explain token, context window, and sampling using the output you observed.
+
+**Later:** The router brief, cross-provider routing, caching economics, and cost comparisons. Build one baseline agent before optimizing it.
+
+**Next in the beginner path:** [Stage 03](stage-03-tool-calling.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Context engineering · model routing · multi-model (cross-provider) agents · token economics · cost optimization · latency tradeoffs · failure modes
 
 ## Why this matters
@@ -14,13 +31,13 @@ Every stage after this one talks about "tokens," "context windows," and "tempera
 
 **An LLM is a probabilistic next-token machine.** At each step, the model doesn't "decide" an answer — it computes a probability distribution over every possible next token given everything so far, then a sampling step picks one. That token gets appended to the input, and the whole process repeats. There's no separate "planning" phase happening before generation starts; even a model that appears to reason step-by-step is still predicting one token at a time, and what looks like reasoning is that same mechanism applied to text that happens to describe intermediate steps. This is *why* prompting works at all: you're not configuring a program, you're shaping the probability distribution the next prediction is drawn from.
 
-**What is a token?** Not a word, and not a character — a token is a chunk of text the model's tokenizer maps to one integer ID, typically averaging around 3–4 characters of English text. "agentic" might be one token or split into pieces like "agent" + "ic" depending on the tokenizer's vocabulary; punctuation, whitespace, and non-English text often tokenize less efficiently than plain English words. This is the literal unit everything is billed and budgeted in — `tokens_in`/`tokens_out` in the brief below aren't an abstraction, they're a direct count of these chunks, and `MAX_ITERATIONS`/context-window limits throughout this roadmap are bounding a token count, not a word count or a turn count.
+**What is a token?** Not a word, and not a character — a token is a chunk of text the model's tokenizer maps to one integer ID, typically averaging around 3–4 characters of English text. "agentic" might be one token or split into pieces like "agent" + "ic" depending on the tokenizer's vocabulary; punctuation, whitespace, and non-English text often tokenize less efficiently than plain English words. This is the literal unit everything is billed and budgeted in — `tokens_in`/`tokens_out` in the brief below aren't an abstraction, they're a direct count of these chunks, and context limits bound tokens; `MAX_ITERATIONS` separately bounds loop steps, not tokens.
 
 **Temperature, top-p, and other sampling parameters control how that next-token distribution gets sampled**, not what the model "knows":
 
 | Parameter | What it does | Typical use |
 |---|---|---|
-| **Temperature** | Scales the probability distribution before sampling. Near 0: almost always picks the single highest-probability token (deterministic, repetitive). Higher (e.g. 0.7–1.0): flattens the distribution, so lower-probability tokens get picked more often (more varied, more prone to drift) | Low for tool-calling/structured extraction/classification (you want consistency); higher for brainstorming, creative writing, varied phrasing |
+| **Temperature** | Scales the probability distribution before sampling. Near 0: almost always picks the single highest-probability token (less variable; reproducibility is not guaranteed). Higher (e.g. 0.7–1.0): flattens the distribution, so lower-probability tokens get picked more often (more varied, more prone to drift) | Low for tool-calling/structured extraction/classification (you want consistency); higher for brainstorming, creative writing, varied phrasing |
 | **Top-p (nucleus sampling)** | Instead of considering every possible token, only samples from the smallest set of tokens whose cumulative probability exceeds p (e.g. 0.9). Often used instead of, or alongside, temperature | Narrowing the candidate pool without going fully deterministic |
 | **Top-k** | Only considers the k most likely next tokens, discarding the rest before sampling | A blunter version of top-p; less commonly tuned directly in modern agent code |
 
@@ -43,7 +60,7 @@ You'll see `temperature=0.3` set directly in this repo's runnable examples (e.g.
 
 "Prompt engineering" means wording one instruction well. **Context engineering** is the broader, now-dominant skill: deciding *everything* that goes into the model's context window on a given call — which tool schemas, which memory, which retrieved chunks, how much conversation history, in what order — and, just as importantly, what to leave out. Model routing (the brief below) is context engineering applied to one axis: which model sees the context at all. Stages 3–6 are context engineering applied to the rest: which tools are visible (Stage 3), which memory tier answers a given question (Stage 4), which retrieved documents get included (Stage 5), which session state is in scope (Stage 6). None of those stages name it explicitly — this is the unifying concept behind all of them.
 
-It's worth knowing by name because it's the term the field now uses for "why did the agent do something wrong" debugging: the answer is almost always "the context it saw was incomplete, stale, or contained the wrong things," not "the model reasoned badly."
+It's worth knowing by name because it's the term the field now uses for "why did the agent do something wrong" debugging: check for incomplete or stale context, then tool failures, routing mistakes, and model capability limits. Context is one important source of errors, not the only one.
 
 ### The four context failure modes — a debugging vocabulary
 
@@ -76,8 +93,8 @@ This cheap/fast-vs-frontier tiering pattern is universal, not Claude-specific �
 def route(task_complexity: str) -> str:
     return {
         "simple":  "claude-haiku-4-5",
-        "complex": "claude-opus-5",
-    }.get(task_complexity, "claude-sonnet-5")
+        "complex": "configured-large-model",
+    }.get(task_complexity, "configured-default-model")
 
 # instrument every call:
 # tokens_in, tokens_out, cache_read_tokens, latency_ms, $cost
@@ -85,7 +102,7 @@ def route(task_complexity: str) -> str:
 
 **Runnable version:** [`examples/stage02-model-router/`](../examples/stage02-model-router/) builds this exact router — the heuristic-first/classifier-second two-tier design, with real token counts, latency, and cost logged per call, plus a `--no-route` baseline so the two totals can be compared. Runs on Ollama (two local tiers) or Claude, one flag apart.
 
-Worth knowing before you run it: **on its sample workload, routing saves about 10%, not 10×.** That's a real measured result and it's left undressed on purpose — it's the cost table below made concrete, and it's what "defend a routing decision with numbers, not vibes" actually feels like when the numbers come back modest.
+Compare the routed workload with `--no-route` on your own setup. Savings depend on workload, output length, routing overhead, and current prices; local inference has hardware costs even without a hosted token bill.
 
 ## Multi-model agents — routing across vendors, not just tiers
 
@@ -134,24 +151,18 @@ Model routing is the first lever, not the only one. Once a router is in place, t
 - **Batch-tier processing** — for anything that doesn't need a synchronous response (nightly scoring, bulk classification, eval runs), batch APIs typically cut cost roughly in half in exchange for async turnaround. Not usable for interactive agent turns, but often applicable to Stage 10's eval suite itself.
 - **Per-session token budgets** — cap total tokens a single agent run is allowed to consume, enforced at the call site (or a gateway in front of it), independent of the iteration cap from Stage 7. An agent that's technically not looping forever can still be quietly expensive per run without one.
 
-## A cost reference to calibrate against
+## Calculate cost from measured usage
 
-This stage's "Done when" asks you to predict a request's cost before running it. That's impossible without knowing roughly what the tiers cost, so here's a reference point — **prices drift, so treat the shape as the lesson and re-check the numbers** at [Claude](https://platform.claude.com/docs/en/about-claude/pricing) / [OpenAI](https://developers.openai.com/api/docs/pricing) before quoting them anywhere that matters:
+For hosted models, sum each call's input and output charges, accounting separately for cached input and any other billed capabilities:
 
-| Tier | Example | Input $/1M tokens | Output $/1M tokens |
-|---|---|---|---|
-| **Local / open-weight** | Llama 3.2 3B via Ollama (what this repo's examples use) | $0 marginal | $0 marginal |
-| **Small / fast** | Claude Haiku 4.5 | ~$1 | ~$5 |
-| **Mid** | Claude Sonnet 5 | ~$2 | ~$10 |
-| **Frontier** | Claude Opus 5 | ~$5 | ~$25 |
+```text
+cost = input_tokens / 1,000,000 × input_rate
+     + output_tokens / 1,000,000 × output_rate
+```
 
-Three things worth internalizing from the shape of that table, none of which are obvious until you've been billed by one of them:
+Rates are currency per million tokens. As an invented arithmetic example, 15,000 input tokens at $2/M and 1,500 output tokens at $10/M cost $0.045. These are not current model prices. Retrieve rates from your provider, record the date, and include tool fees. For local models, report token counts, wall time, and hardware usage instead of describing inference as costless.
 
-1. **Output costs ~5× input.** An agent that returns verbose answers is much more expensive than one that reads a lot and answers concisely. Trimming a system prompt saves less than trimming the response length.
-2. **The frontier-to-cheap spread is ~5×, not 100×.** Routing is worth doing, but it isn't the difference between viable and unviable — a badly-designed loop that makes 20 calls where 3 would do costs far more than picking the "wrong" tier. Fix the loop before you optimize the routing.
-3. **Prompt caching changes the math more than model choice does.** A cached input token typically costs a fraction of a fresh one, so a stable prefix across many calls (Stage 2's cache-hit-rate design above) can beat a tier downgrade *without* the quality cost — which is why "cache first, route second" is the right order.
-
-**Working an example.** A ReAct agent with a 2,000-token system prompt + tool schemas, running 5 loop iterations on a task, re-sending the growing history each time, and producing 300 output tokens per step: input is roughly 2,000 + (2,000 + accumulated results) × 4 ≈ 15,000 tokens; output is ~1,500. On a mid-tier model that's roughly $0.03 + $0.015 ≈ **$0.045 per task run.** Cheap for one run; $450 at 10,000 runs a day — which is exactly the point at which Stage 8's "multi-agent costs ~3× a single agent" warning stops being an abstraction. Do this arithmetic once for your own agent and the rest of this roadmap's cost advice becomes concrete.
+Routing, caching, shorter outputs, and fewer loop steps can each help; measure them against the same baseline rather than assuming a fixed percentage saving.
 
 ---
 [← Stage 01 — Python + Async Foundations](stage-01-python-async.md) · [Back to roadmap](../README.md) · **Next:** [Stage 03 — Tool Calling + Structured Outputs →](stage-03-tool-calling.md)

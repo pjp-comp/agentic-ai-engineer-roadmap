@@ -1,111 +1,78 @@
-[← Stage 12](stage-12-security-guardrails.md) · Stage 13 of 14 · **Next:** [Stage 14 →](stage-14-portfolio.md)
+[← Stage 12](stage-12-security-guardrails.md) · Stage 13 of 14 · [Next: Stage 14 →](stage-14-portfolio.md)
 
 # Stage 13 — Production Deployment
 
-vLLM/SGLang · Kubernetes scaling · CI/CD for agents · canary releases · rollback strategies · idempotent tools + tool caching · agent-native infra (durable execution, sandboxing, gateways)
+## First pass
 
-## Why this matters
+**Before this lesson:** A working agent plus approval, evaluation, and tracing concepts.
 
-Kubernetes earns its keep only once you need horizontal scaling, multi-tenant isolation, or rolling deploys — not by default. If self-hosting open-weight models, vLLM (broad compatibility, Apache-2.0) and SGLang (higher throughput, structured-generation-first) are the two serving engines worth knowing. Version model weights, serving config, and prompt templates independently — all three affect output quality and drift separately.
+**Do now:** Run the no-model idempotent-tools example. Keep one action identifier on retry and use a different one for a new purchase.
 
-## Brief
+**Try it yourself:** Submit identical inputs as two distinct actions; both should occur. Reuse an action identifier with changed inputs; it should fail.
 
-Containerize the Stage 9 agent service; write a CI pipeline that runs the Stage 10 eval suite as a merge gate; deploy behind a canary (5% traffic) with automatic rollback if error rate or eval pass-rate regresses.
+**Check your understanding:** Distinguish retry identity, read caching, and durable backend guarantees. The local ledger is in-memory.
 
-```yaml
-# CI gate (excerpt)
-- run: pytest tests/eval_suite.py --min-pass-rate=0.92
-- run: docker build -t agent:$SHA .
-- run: kubectl set image deployment/agent-canary agent=agent:$SHA
-- run: ./scripts/watch_canary.sh --rollback-on-error-rate=0.02
-```
+**Later:** Container services, CI deployment gates, canaries, Kubernetes, gateways, and durable execution engines. The snippets here are infrastructure plans, not included runnable deployment files.
+
+**Next in the beginner path:** [Stage 14](stage-14-portfolio.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
+
+## Start with one service
+
+A local demo is not a deployed service. First define its request/response interface, persistent stores, credentials, timeouts, run budgets, health checks, and cancellation behavior. Package one working agent and run its evaluation checks before adding scaling infrastructure. Kubernetes and self-hosted model serving are optional responses to measured needs.
+
+The repository has no complete deployment service, Dockerfile, canary controller, or deployment CI pipeline. The following is an implementation plan:
+
+1. Wrap the chosen agent in a service; protect it with authentication and per-user authorization.
+2. Persist sessions and action records; test restart behavior and concurrent workers.
+3. Run deterministic tests and quality evaluations in CI; use the actual harness options documented in Stage 10.
+4. Deploy a small release, compare error rate, latency, cost, and quality with a baseline, and exercise rollback.
 
 ## Idempotent tools + tool caching — why retries are dangerous by default
 
-Once an agent is live, retries are unavoidable: a network blip, a rate limit, a crashed worker mid-loop — all of these mean "run the same tool call again" is a routine event, not an edge case. The problem is that most tools are **not safe to run twice**. An agent that retries a `charge_card` or `send_email` tool call after a timeout — not knowing whether the first call actually succeeded before the timeout — can double-charge a customer or send a duplicate email. This is a production incident category of its own, distinct from the model-quality concerns the rest of this roadmap focuses on.
+A timeout means the caller may not know whether an action happened. Retrying a payment, email, or write can repeat the effect.
 
-Two techniques fix this, and you generally want both:
+**Action identity:** create an identifier once for one intended action and preserve it on retries. A random UUID is suitable if saved before execution and reused. Two distinct purchases must have different identifiers even when customer and amount are identical. Hashing only the inputs would incorrectly suppress the second purchase.
 
-**1. Idempotency keys.** Every tool call that has a side effect should carry a deterministic identifier derived from its inputs (not a random UUID generated fresh each call — it must be the *same* key on a retry of the *same* logical action). The downstream system checks the key before acting: if it's seen this key before, it returns the previous result instead of repeating the side effect.
-
-```python
-import hashlib
-import json
-
-def idempotency_key(tool_name: str, tool_input: dict) -> str:
-    # Deterministic: same tool + same input always produces the same key,
-    # so a genuine retry collides with the original call on purpose.
-    payload = json.dumps({"tool": tool_name, "input": tool_input}, sort_keys=True)
-    return hashlib.sha256(payload.encode()).hexdigest()
-
-def charge_card(amount: float, customer_id: str, seen_keys: dict) -> str:
-    key = idempotency_key("charge_card", {"amount": amount, "customer_id": customer_id})
-    if key in seen_keys:
-        return seen_keys[key]  # already ran — return the prior result, don't charge again
-    result = _actually_charge(amount, customer_id)
-    seen_keys[key] = result
-    return result
-```
-
-**2. Tool-result caching.** Distinct from idempotency (which prevents *duplicate side effects*), caching also saves latency and API cost on read-only or expensive tools — a repeated `get_weather("Paris")` or a repeated database lookup within the same conversation doesn't need to hit the network twice.
+**Backend enforcement:** the service performing the action must recognize that identifier, reject changed arguments for it, and return the original result on a retry. Real guarantees require durable storage, concurrency control, and an atomic relationship between the effect and its idempotency record—or the downstream provider's own idempotency support. A caller-side dictionary cannot make an external payment exactly-once.
 
 ```python
-class CachedTool:
-    def __init__(self, fn, ttl_seconds=300):
-        self.fn = fn
-        self.ttl = ttl_seconds
-        self._cache: dict[str, tuple[float, str]] = {}
-
-    def __call__(self, **kwargs) -> str:
-        key = idempotency_key(self.fn.__name__, kwargs)
-        if key in self._cache:
-            cached_at, result = self._cache[key]
-            if time.time() - cached_at < self.ttl:
-                return result
-        result = self.fn(**kwargs)
-        self._cache[key] = (time.time(), result)
-        return result
+# Design sketch: create once, persist, and reuse after a timeout.
+action_id = stored_action.id
+payments.charge(amount=stored_action.amount, idempotency_key=action_id)
 ```
 
-**Not every tool needs this.** Read-only, side-effect-free tools (a calculator, a search) don't need idempotency keys — running them twice is harmless, though caching them still saves cost. Reserve idempotency keys specifically for tools with real side effects: anything that writes, charges, sends, or deletes.
+**Read caching:** a read-only tool may instead cache by input content with a TTL. Cache scope must include relevant tenant identity, permissions, and data freshness. Caching saves repeated work; it is not an authorization mechanism or a side-effect guarantee.
 
-**Runnable version:** [`examples/stage13-idempotent-tools/`](../examples/stage13-idempotent-tools/) builds both `idempotency_key()` and `CachedTool` for real, then simulates the exact failure this section describes — a process dying right after a `charge_card` call, before the caller sees the response — and proves the retry that follows doesn't double-charge. No LLM required; this is the tool layer underneath an agent, not the model.
+**Runnable version:** [stage13-idempotent-tools](../examples/stage13-idempotent-tools/) demonstrates one retry, a distinct purchase with identical values, and read caching. Its ledger is in memory. It simulates a lost caller response; it does not kill a process or prove recovery after backend restart.
 
 ## Agent-native infrastructure — what agents need that ordinary services don't
 
-Everything above (containers, K8s, canaries, rollback) is standard service deployment, and it all still applies. But agent workloads break three assumptions ordinary web services are built around, and each break has a category of infrastructure that exists specifically to fix it:
-
-| Assumption a normal service makes | Why an agent breaks it | The infrastructure category |
+| Problem | Category to investigate | What still needs design |
 |---|---|---|
-| Requests finish in milliseconds to seconds | An agent run can take minutes to hours ([Stage 7's long-running agents](stage-07-single-agent.md#long-running-agents)); a deploy mid-run kills work that can't simply be retried from the top | **Durable execution** |
-| The code we run is code we wrote | An agent generates and executes code, or runs tool calls whose arguments come from an untrusted model ([Stage 12](stage-12-security-guardrails.md)) | **Sandboxing runtimes** |
-| One backend, one API contract | A [multi-model router](stage-02-llm-fundamentals.md#multi-model-agents--routing-across-vendors-not-just-tiers) needs failover, per-team budgets, and one place to see spend across providers | **Agent gateways** |
+| A run must survive deployment or wait for a person | Durable execution / checkpointing | Replay boundaries, retry identity, cancellation, state migrations |
+| Model-generated code must execute | Isolation runtime | Filesystem/network policy, credentials, resources, escape resistance |
+| Multiple model providers need common controls | Gateway | Budgets, failover semantics, logging, provider-specific capabilities |
 
-**Durable execution.** Stage 7 makes the loop resumable by checkpointing state yourself. Durable-execution engines — Temporal (referenced in [Stage 9](stage-09-human-in-the-loop.md) as a checkpoint-pattern reference, but genuinely a production agent-runtime choice now), Restate, and Inngest among them — make that the runtime's job instead of yours: your loop is written as ordinary code, every step's result is journaled, and a crash replays the journal to reconstruct state rather than re-executing completed work. This maps *exactly* onto the two hardest problems in this roadmap — [Stage 7's resumable long-running loop](stage-07-single-agent.md#long-running-agents) and [Stage 9's pause-for-approval-and-resume](stage-09-human-in-the-loop.md) — which is why a human-approval gate that might wait three days is the case where hand-rolled checkpointing stops being adequate. Reach for one when a run outlives a deploy cycle; before that, LangGraph's checkpointer is enough.
+Durable execution reuses recorded progress but cannot automatically make arbitrary external side effects safe. Checkpointing and backend idempotency solve different parts of the problem.
 
-**Sandboxing.** [Stage 12's brief](stage-12-security-guardrails.md) requires "a sandboxed subprocess with no filesystem/network access" — and a subprocess is the right thing to build first, since it makes the isolation boundary concrete. It is not, however, a security boundary you should trust against genuinely adversarial code in production. The real options, in increasing order of isolation: a container (weak — shared kernel), **gVisor** (a syscall-intercepting sandbox), **Firecracker microVMs** (hardware-level isolation, the technology under AWS Lambda), or a hosted sandbox service (E2B, Modal, Daytona) that gives you microVM isolation without operating it. **The rule worth remembering: if the code being run was written by a model, or its arguments were chosen by one, a container alone is not enough.**
+A subprocess alone is not isolation. Containers, syscall sandboxes, microVMs, and hosted execution services have different boundaries and configurations. Choose against an explicit threat model rather than assuming any product label guarantees containment. For a calculator, a bounded grammar avoids the need to execute generated Python at all.
 
-**Agent gateways.** LiteLLM appears in [Stage 2](stage-02-llm-fundamentals.md) as a way to avoid hand-writing `_build_llm()` branches, but the reason it belongs in a deployment stage is operational, not ergonomic: a gateway is the single chokepoint where you can enforce per-team spend caps, fail over when a provider degrades, apply rate limits, and get one unified log of every model call regardless of vendor. Without one, each of those has to be re-implemented in every service that calls a model. The same argument that makes an API gateway standard for microservices applies here — and [Stage 8's note](stage-08-multi-agent.md) about treating inter-agent traffic as regulated API traffic is the multi-agent version of the same idea.
-
-**What to actually do with this section:** nothing, at first. All three are answers to problems you'll recognize when you hit them — a run killed by a deploy, a sandbox escape you can't rule out, a surprise bill nobody can attribute. Knowing the category names is what lets you search for the right thing at that moment instead of building a worse version of it yourself.
+Gateways can centralize routing and accounting; they do not make every provider's tool, streaming, and structured-output behavior identical. Keep provider-specific evaluation coverage.
 
 ## Sources
 
-| Type | Resource |
-|------|----------|
-| Docs | [vLLM — Using Kubernetes (official docs)](https://docs.vllm.ai/en/stable/deployment/k8s/) |
-| Docs | [Temporal — durable execution for AI agents](https://temporal.io/solutions/ai) — the journaling/replay model described above |
-| Tool | E2B, Modal, Daytona — hosted sandboxes for model-generated code; gVisor and Firecracker for self-operated isolation |
-| Docs | [LiteLLM — proxy/gateway docs](https://docs.litellm.ai/docs/simple_proxy) — budgets, failover, and unified logging across providers |
-| Guide | [vLLM Production Deployment — complete 2026 guide](https://www.sitepoint.com/vllm-production-deployment-guide-2026/) |
-| Guide | [SGLang — the complete guide to high-performance LLM inference](https://inference.net/content/sglang-complete-guide/) |
-| Reference | LiteLLM as an OpenAI-compatible gateway in front of multiple backends |
-| Guide | [PADISO — Building idempotent tools for long-running agents](https://www.padiso.co/blog/building-idempotent-tools-for-long-running-agents/) |
-| Guide | [MightyBot — Designing fault-tolerant AI agent pipelines: idempotency, retries, state management](https://mightybot.ai/blog/fault-tolerant-ai-agent-pipelines/) |
+- [Stripe: idempotent requests](https://docs.stripe.com/api/idempotent_requests) — action keys, retries, and parameter consistency.
+- [Temporal: durable execution for AI](https://temporal.io/solutions/ai) — an implementation option for long-running work.
+- [gVisor architecture](https://gvisor.dev/docs/architecture_guide/intro/) — one isolation design and its boundary.
+- [LiteLLM gateway documentation](https://docs.litellm.ai/docs/simple_proxy) — an optional provider gateway.
 
 ## Done when
 
-A bad deploy auto-rolls-back before it reaches full traffic, with no manual intervention — and forcing a retry on a side-effecting tool call (e.g. killing the process right after `charge_card` runs, before the response is received) does not result in the action happening twice.
+For the local exercise, a retry repeats no charge, a new action with identical inputs creates a new charge, and reusing an identifier with different inputs fails. For a deployed project, separately test backend restart, concurrent duplicate requests, uncertain external outcomes, and rollback. Report these as distinct checks.
 
 ---
-[← Stage 12 — Security + Guardrails](stage-12-security-guardrails.md) · [Back to roadmap](../README.md) · **Next:** [Stage 14 — Open Source + Portfolio →](stage-14-portfolio.md)
+[Back to learning path](../README.md) · [Next: Stage 14 →](stage-14-portfolio.md)

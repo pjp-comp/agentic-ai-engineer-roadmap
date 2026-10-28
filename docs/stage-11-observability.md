@@ -2,6 +2,23 @@
 
 # Stage 11 — Observability + Tracing
 
+## First pass
+
+**Before this lesson:** One working agent. The bundled graph demo additionally requires Stage 08.
+
+**Do now:** For your single agent, record a run identifier, tool name, duration, and outcome around each call. Read the bundled tracing code as a reference.
+
+**Try it yourself:** Force a tool error and find its record by run identifier; redact any sensitive arguments.
+
+**Check your understanding:** Reconstruct the failing step from records without relying on the final answer alone.
+
+**Later:** The Stage 08 supervisor demo, hosted backends, OpenTelemetry integration, dashboards, and alerts.
+
+**Next in the beginner path:** [Stage 10](stage-10-evaluation-qa.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Distributed tracing (LangSmith/Arize) · spans, traces, and span attributes · what to instrument · cost dashboards · latency monitoring · alerting on agent-specific signals
 
 ## Why this matters

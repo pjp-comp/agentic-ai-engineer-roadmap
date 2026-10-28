@@ -7,11 +7,11 @@
 ## The brief, as a checklist
 
 - [ ] **Pick one agent** — not all of them. Stage 14's brief says "the agent built across Stages 5–13" (singular). [`stage08-supervisor-langgraph`](../stage08-supervisor-langgraph/) or [`stage09-human-in-the-loop`](../stage09-human-in-the-loop/) are the most demo-able candidates in this repo — multi-step, visibly doing something a single prompt-response can't.
-- [ ] **Public repo** — if this whole repo isn't already public, that's step one. A private portfolio isn't a portfolio.
+- [ ] **Reproducible project** — another person can follow the setup. A public repository is optional; check credentials, data rights, and licensing before publishing.
 - [ ] **README with an architecture diagram** — see the template below. Write this *before* recording the demo (Stage 14's own advice) — it forces you to justify design choices made on autopilot.
 - [ ] **3–5 minute demo recording** — screen recording, not slides. Show it working, then show it failing.
 - [ ] **A deliberately induced failure, and how it degrades** — don't hide the failure case, stage it. A rate-limit error, a bad tool call, a timeout — then show the graceful-degradation path (Stage 7), the human-in-the-loop rejection (Stage 9), or the eval suite catching it (Stage 10) actually working.
-- [ ] **One real OSS contribution** — LangGraph, CrewAI, an MCP server, anything used along the way. A docs fix counts as a start, per the brief.
+- [ ] **Optional: one real OSS contribution** — LangGraph, CrewAI, an MCP server, anything used along the way. A docs fix counts as a start, per the brief.
 
 ## Architecture doc template
 
@@ -55,7 +55,7 @@ plainly, not discovered by the reader the hard way>
 
 ## Where the actual proof lives
 
-Every checkbox above maps to something already built and verified in this repo:
+These examples provide patterns to run and verify yourself; their presence is not evidence that your project has passed checks:
 
 | Stage 14 asks for | Already built at |
 |---|---|

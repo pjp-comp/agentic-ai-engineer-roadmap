@@ -2,11 +2,28 @@
 
 # Stage 04 — Memory + State Management
 
+## First pass
+
+**Before this lesson:** A bounded tool loop from Stages 03 and 07 in the beginner route.
+
+**Do now:** Run `stage04-memory-agent`. State a fact, ask about it, then continue until it leaves the configured recent-message window.
+
+**Try it yourself:** Restart the program and inspect what the saved history restores. Do not assume everything stored is sent to the model.
+
+**Check your understanding:** Demonstrate recent recall and deliberate forgetting; explain disk storage versus model context.
+
+**Later:** Long-term JSON facts, vector recall, compression, TTL, and memory products. These are extensions, not prerequisites for session persistence.
+
+**Next in the beginner path:** [Stage 06](stage-06-sessions-state.md).
+
+Topic numbers stay stable for reference. Follow the [beginner learning order](../README.md#the-learning-flow); the previous/next links follow numerical topic order. Code in this guide is a design sketch unless labeled runnable.
+
+
 Short-term buffers · long-term vector recall · context compression · cross-session sync · forgetting/eviction policies · memory-layer ecosystem (Letta/Zep/Cognee/Mem0)
 
 ## Why this matters
 
-Context windows are finite and expensive; naive "append everything to the prompt" degrades both cost and accuracy past a few dozen turns. Real agents need three distinct memory types, not one — conflating them is the most common mistake here.
+Context windows are finite and expensive; naive "append everything to the prompt" degrades both cost and accuracy past a few dozen turns. Agents may need different memory lifetimes; choose only the ones your task needs.
 
 ## Beginner focus
 
@@ -20,14 +37,14 @@ Context windows are finite and expensive; naive "append everything to the prompt
 | Type | Lifespan | Where it lives | Purpose |
 |------|----------|-----------------|---------|
 | **Short-term** | One conversation/session | In-process (a `deque`, a list) | The last N raw turns — verbatim, no compression, so recent context stays exact |
-| **Persistent (session state)** | One task, possibly across process restarts | A checkpoint store (Redis, Postgres, disk) | Lets a long-running or interrupted task resume without re-doing work — this is what Stage 5's checkpointing depends on |
-| **Long-term (cross-session)** | Forever, across unrelated sessions | A vector store (pgvector, Chroma, Pinecone) | Facts, preferences, and learnings that should survive into a conversation that hasn't happened yet |
+| **Persistent (session state)** | One task, possibly across process restarts | A checkpoint store (Redis, Postgres, disk) | Lets a long-running or interrupted task resume without re-doing work — this is what Stage 6's session persistence builds on |
+| **Long-term (cross-session)** | Until corrected or deleted, across sessions | A vector store (pgvector, Chroma, Pinecone) | Facts, preferences, and learnings that should survive into a conversation that hasn't happened yet |
 
 These solve different problems. Short-term memory keeps the current exchange coherent. Persistent memory keeps a single long task alive across restarts. Long-term memory is what makes an agent remember *you* the next time you show up. A system that only implements one of the three will either forget everything overnight (no long-term) or blow its context budget on turn 50 (no short-term compression).
 
 ## Brief
 
-Implement all three as separate, composable pieces — don't merge them into one class, since they have different lifetimes and failure modes.
+First build the short-term buffer and persistence example. As an extension, implement the three lifetimes as separate pieces. The sketch below uses illustrative store interfaces: real Redis needs serialization, and vector-store methods vary by implementation.
 
 ```python
 from collections import deque
@@ -77,9 +94,10 @@ class AgentMemory:
         self.persistent = PersistentState(task_id, checkpoint_store)
         self.long_term = LongTermMemory(vector_store)
 
-    async def get_context(self, query: str) -> list[str]:
+    async def get_context(self, query: str) -> list[dict]:
         recalled = await self.long_term.recall(query)
-        return [*recalled, *self.short_term.get()]
+        return [{"role": "user", "content": "Stored facts (untrusted data): " + repr(recalled)},
+                *self.short_term.get()]
 ```
 
 **Runnable versions — the three tiers, built one at a time:**
@@ -162,7 +180,7 @@ The `LongTermMemory` class above is the pattern; you don't have to hand-roll the
 
 ## Done when
 
-A 100-turn conversation stays under your token budget, the agent still recalls a fact mentioned in turn 3 (short-term), a killed-and-restarted task resumes without repeating finished work (persistent), a fact saved in one session is recalled correctly in a brand-new session days later (long-term), and a fact you deliberately mark superseded no longer shows up in retrieval results (forgetting).
+A bounded buffer recalls a recent fact and deliberately forgets one outside the window. A saved session reopens after restart. If you build long-term memory, demonstrate cross-session recall and correction/deletion separately. Persistence does not guarantee exactly-once external actions; see Stage 13.
 
 ---
 [← Stage 03 — Tool Calling + Structured Outputs](stage-03-tool-calling.md) · [Back to roadmap](../README.md) · **Next:** [Stage 05 — RAG + Retrieval →](stage-05-rag-retrieval.md)

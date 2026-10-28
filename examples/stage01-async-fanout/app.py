@@ -43,6 +43,9 @@ Usage:
         -d '{"q": "async python", "loc": "Paris", "expr": "2+2"}'
 """
 
+import ast
+import math
+import operator
 import asyncio
 import random
 import time
@@ -116,13 +119,38 @@ async def weather(loc: str) -> dict:
     return {"tool": "weather", "location": loc, "forecast": "22C, clear"}
 
 
+def evaluate_arithmetic(expression: str) -> float | int:
+    """Interpret a bounded arithmetic grammar, never Python code."""
+    if not isinstance(expression, str) or len(expression) > 200:
+        raise ValueError("expression must be at most 200 characters")
+    tree = ast.parse(expression, mode="eval")
+    if sum(1 for _ in ast.walk(tree)) > 64:
+        raise ValueError("expression is too complex")
+    binary = {ast.Add: operator.add, ast.Sub: operator.sub,
+              ast.Mult: operator.mul, ast.Div: operator.truediv,
+              ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod}
+    unary = {ast.UAdd: operator.pos, ast.USub: operator.neg}
+
+    def visit(node):
+        if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+            value = node.value
+        elif isinstance(node, ast.BinOp) and type(node.op) in binary:
+            value = binary[type(node.op)](visit(node.left), visit(node.right))
+        elif isinstance(node, ast.UnaryOp) and type(node.op) in unary:
+            value = unary[type(node.op)](visit(node.operand))
+        else:
+            raise ValueError("only numeric literals and + - * / // % are allowed")
+        if not math.isfinite(value) or abs(value) > 1e12:
+            raise ValueError("numeric result exceeds the demo limit")
+        return value
+
+    return visit(tree.body)
+
+
 async def calc(expr: str) -> dict:
     await asyncio.sleep(0.1)           # always fast -- the reliable control case
     try:
-        # eval() is fine here: this is a local demo tool, not a
-        # production expression evaluator taking untrusted input over the
-        # network without sandboxing (see stage12-guardrails for that).
-        return {"tool": "calc", "expression": expr, "result": eval(expr, {"__builtins__": {}})}
+        return {"tool": "calc", "expression": expr, "result": evaluate_arithmetic(expr)}
     except Exception as e:
         raise ToolError(f"invalid expression {expr!r}: {e}")
 
